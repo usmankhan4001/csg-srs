@@ -2,7 +2,9 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import fs from "node:fs";
+import path from "node:path";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { ROOT } from "./indexer.ts";
 import {
   getStore,
   reindex,
@@ -34,6 +36,12 @@ const GIT_AUTOCOMMIT = (process.env.GIT_AUTOCOMMIT || "true") !== "false";
 getStore(); // warm the index
 
 app.use("/wireframes", express.static(WIREFRAME_DIR));
+
+// In production, serve the built frontend (dist/) from the same server, so the
+// whole app runs as one container on one port. In dev, Vite serves the client.
+const DIST_DIR = path.join(ROOT, "dist");
+const SERVE_STATIC = fs.existsSync(DIST_DIR);
+if (SERVE_STATIC) app.use(express.static(DIST_DIR));
 
 // ---- Config / products -------------------------------------------------
 app.get("/api/config", (_req, res) => {
@@ -247,6 +255,16 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
+// SPA fallback: anything that isn't an API/asset route returns index.html.
+if (SERVE_STATIC) {
+  app.get("*", (req, res, next) => {
+    if (req.path.startsWith("/api") || req.path.startsWith("/wireframes"))
+      return next();
+    res.sendFile(path.join(DIST_DIR, "index.html"));
+  });
+}
+
 app.listen(PORT, () => {
   console.log(`SRS backend listening on http://localhost:${PORT}`);
+  if (SERVE_STATIC) console.log("Serving built frontend from dist/.");
 });
