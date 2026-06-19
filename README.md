@@ -1,26 +1,29 @@
-# P1 LMS+SMS — SRS Knowledge Base
+# SRS Knowledge Base (multi-product)
 
-A searchable knowledge base + AI assistant for the Lighthouse Global School
-System **P1 LMS+SMS** Software Requirements Specification. Internal, read-only,
-no auth.
+A searchable knowledge base + AI assistant for Lighthouse Global School System
+Software Requirements Specifications. Hosts **many products** (P1, P2, …) in one
+app. Viewing is open; **editing is behind a password**. Changes are versioned in
+git.
 
 ## Stack
 - **Frontend:** React 18 + TypeScript + Vite + Tailwind
-- **Backend:** Node + Express (keeps the Anthropic key server-side)
-- **AI:** Google **Gemini** (`gemini-2.0-flash` by default) with keyword/ID-based RAG (FlexSearch — no vector DB)
-- **Rendering:** react-markdown + remark-gfm, Mermaid diagrams inline
+- **Backend:** Node + Express (keeps the AI key server-side)
+- **AI:** Google **Gemini** (`gemini-2.5-pro` by default) with keyword/ID-based RAG (FlexSearch — no vector DB)
+- **Rendering:** react-markdown + remark-gfm, Mermaid diagrams inline (zoom/pan)
 
-## Data location
-The docs are read directly from the repo-root folders **`P1_LMS_SMS/`** and
-**`_Shared/`** (the unified export places them here rather than under
-`docs/P1_LMS_SMS/` as the original build note assumed). This is configured in
-`backend/indexer.ts` → `DOC_ROOTS`. The docs folder is the only data store.
+## Multi-product layout
+Each **top-level folder** in the repo that contains `.md` files is auto-detected
+as a product (e.g. `P1_LMS_SMS/`, and any future `P2_xxx/`, `P3_xxx/`). The
+`_Shared/` folder (Decision Log, ID Register, etc.) is available to every
+product. To add a product: drop its folder at the repo root and restart — it
+appears in the product dropdown automatically. App code (`src/`, `backend/`,
+`node_modules`, `index`, `docs`, `dist`) is excluded from product detection.
 
 ## Setup
 ```bash
 npm install
-cp .env.example .env        # then paste your GEMINI_API_KEY into .env
-npm run index               # builds index/chunks.json, id_lookup.json, requirements.json
+cp .env.example .env        # set GEMINI_API_KEY, EDIT_PASSWORD, AUTH_SECRET
+npm run index               # builds index/ (chunks, id_lookup, requirements, products)
 npm run dev                 # backend :8787 + client :5173 (open http://localhost:5173)
 ```
 Get a free Gemini key at <https://aistudio.google.com/app/apikey>, then open the
@@ -31,6 +34,31 @@ after editing the source docs.
 > Without `GEMINI_API_KEY`, everything works except live chat answers — the chat
 > panel still runs retrieval and shows the cited source sections, with a note to
 > add the key.
+
+## Editing (password-gated, Obsidian-style)
+Viewing is open to anyone who can reach the app. To edit:
+1. Set `EDIT_PASSWORD` and a long random `AUTH_SECRET` in `.env`.
+2. Click **Edit** in the header → enter the password (unlocks for ~8 hours, token stored locally).
+3. You get a split editor: raw Markdown on the left, **live preview** on the right. `Ctrl/⌘+S` or **Save**.
+4. On save the file is written to disk, the search/cross-link index is rebuilt, and — if `GIT_AUTOCOMMIT=true` — the change is **auto-committed to git** (`docs: edit <path>`). Recent edits show under each document.
+
+Write endpoints (`PUT /api/file`, `POST /api/reindex`) require a valid editor
+token; all read endpoints are open.
+
+## Versioning & GitHub
+This repo is git-initialised and every saved edit is auto-committed, so you have
+full history. To push to GitHub for backup/versioning:
+
+```bash
+# 1. Create an EMPTY *private* repo on github.com (no README/license).
+# 2. Then, from this folder:
+git remote add origin https://github.com/<you>/<repo>.git
+git branch -M main
+git push -u origin main
+```
+`.env` (your real keys) is gitignored and never committed; `.env.example`
+contains only placeholders. **Keep the repo private** — it holds confidential
+SRS content.
 
 ## Features
 - **File tree** mirroring `P1_LMS_SMS/` + `_Shared/`, resizable 3-pane layout (tabs on mobile).
