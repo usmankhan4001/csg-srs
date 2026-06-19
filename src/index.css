@@ -1,0 +1,211 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
+  color: #0f172a;
+  background: #ffffff;
+}
+
+/* ---- Markdown prose ---------------------------------------------------- */
+.prose-srs {
+  line-height: 1.6;
+  font-size: 15px;
+}
+.prose-srs h1 {
+  font-size: 1.7rem;
+  font-weight: 800;
+  margin: 0.4em 0 0.5em;
+  scroll-margin-top: 70px;
+}
+.prose-srs h2 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin: 1.4em 0 0.5em;
+  padding-top: 0.3em;
+  border-top: 1px solid #e2e8f0;
+  scroll-margin-top: 70px;
+}
+.prose-srs h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 1.1em 0 0.4em;
+  scroll-margin-top: 70px;
+}
+.prose-srs h4 {
+  font-weight: 700;
+  margin: 0.9em 0 0.3em;
+}
+.prose-srs p {
+  margin: 0.6em 0;
+}
+.prose-srs ul,
+.prose-srs ol {
+  margin: 0.5em 0;
+  padding-left: 1.4em;
+  list-style: revert;
+}
+.prose-srs li {
+  margin: 0.2em 0;
+}
+.prose-srs a {
+  color: #2563eb;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prose-srs blockquote {
+  border-left: 3px solid #cbd5e1;
+  padding-left: 1em;
+  color: #475569;
+  margin: 0.8em 0;
+}
+.prose-srs table {
+  border-collapse: collapse;
+  margin: 0.8em 0;
+  font-size: 13px;
+  display: block;
+  overflow-x: auto;
+}
+.prose-srs th,
+.prose-srs td {
+  border: 1px solid #e2e8f0;
+  padding: 5px 9px;
+  text-align: left;
+  vertical-align: top;
+}
+.prose-srs th {
+  background: #f1f5f9;
+  font-weight: 700;
+}
+.prose-srs pre {
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 14px;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 12.5px;
+  line-height: 1.35;
+  margin: 0.6em 0;
+}
+.prose-srs :not(pre) > code {
+  background: #f1f5f9;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.88em;
+}
+.prose-srs hr {
+  border: none;
+  border-top: 1px solid #e2e8f0;
+  margin: 1.2em 0;
+}
+
+/* ASCII wireframe blocks: keep monospace alignment intact */
+.prose-srs pre.ascii-wf {
+  background: #fafafa;
+  color: #1f2937;
+  border: 1px solid #e2e8f0;
+  font-family: "Cascadia Code", Consolas, "Courier New", monospace;
+}
+
+/* Cross-link chips */
+.xlink {
+  background: #eef2ff;
+  color: #4338ca;
+  border: 1px solid #c7d2fe;
+  border-radius: 5px;
+  padding: 0 5px;
+  font-size: 0.85em;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none !important;
+}
+.xlink:hover {
+  background: #c7d2fe;
+}
+.xlink.soft {
+  background: #f1f5f9;
+  color: #475569;
+  border-color: #e2e8f0;
+}
+
+/* highlight flash for navigated heading / search hit */
+@keyframes flashHi {
+  0% {
+    background: #fde68a;
+  }
+  100% {
+    background: transparent;
+  }
+}
+.flash-hi {
+  animation: flashHi 2.2s ease-out;
+  border-radius: 4px;
+}
+
+.mermaid-wrap {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin: 0.8em 0;
+  overflow: hidden;
+  position: relative;
+}
+.mermaid-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-bottom: 1px solid #eef2f7;
+  background: #f8fafc;
+}
+.mermaid-toolbar button {
+  width: 26px;
+  height: 26px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  color: #334155;
+}
+.mermaid-toolbar button:hover {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+}
+.mermaid-hint {
+  margin-left: 6px;
+  font-size: 11px;
+  color: #94a3b8;
+}
+.mermaid-stage {
+  height: 460px;
+  overflow: hidden;
+  background:
+    linear-gradient(90deg, #fafbfc 1px, transparent 1px) 0 0 / 22px 22px,
+    linear-gradient(#fafbfc 1px, transparent 1px) 0 0 / 22px 22px;
+}
+.mermaid-stage svg {
+  max-width: none !important;
+  height: auto;
+  user-select: none;
+}
+.mermaid-loading {
+  position: absolute;
+  inset: 40px 0 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  font-size: 13px;
+  pointer-events: none;
+}

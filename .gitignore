@@ -1,0 +1,16 @@
+node_modules
+dist
+.env
+index/*.json
+
+# logs / scratch
+*.log
+dev.out.log
+server.out.log
+server.err.log
+vite.out.log
+vite.err.log
+
+# OS
+.DS_Store
+Thumbs.db
