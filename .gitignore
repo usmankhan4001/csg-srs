@@ -3,6 +3,10 @@ dist
 .env
 index/*.json
 
+# runtime data (persist via a volume in production, not in git)
+users.json
+comments/
+
 # logs / scratch
 *.log
 dev.out.log

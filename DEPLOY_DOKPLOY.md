@@ -71,6 +71,18 @@ only inside the running container would be lost. Pick one:
   this setup, content lives on the server; to also back it up to GitHub, run
   `git push` from the container (or a scheduled job) — see below.
 
+### User accounts & comments persistence (important)
+Registered users and comments are stored on disk at **`/app/users.json`** and
+**`/app/comments/`** (both gitignored). To keep them across redeploys, mount
+volumes there too:
+```
+/app/users.json
+/app/comments
+```
+Set a strong **`AUTH_SECRET`** (it signs both editor and user login tokens) and
+**`EDIT_PASSWORD`** in the environment. Registration is open by design (anyone
+can create an account and comment); attribution is by account.
+
 ### Optional: push edits back to GitHub
 To have in-container commits flow to GitHub, give the container a deploy key or a
 token-scoped remote and add a `git push` step (e.g. a Dokploy scheduled task or a

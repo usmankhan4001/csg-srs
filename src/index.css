@@ -151,6 +151,41 @@ body {
   border-radius: 4px;
 }
 
+/* inline comment markers on headings */
+.prose-srs h1,
+.prose-srs h2,
+.prose-srs h3,
+.prose-srs h4 {
+  position: relative;
+}
+.cmt-marker {
+  margin-left: 8px;
+  font-size: 11px;
+  line-height: 1;
+  padding: 2px 6px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  color: #64748b;
+  cursor: pointer;
+  vertical-align: middle;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.prose-srs :is(h1, h2, h3, h4):hover .cmt-marker {
+  opacity: 1;
+}
+.cmt-marker.has {
+  opacity: 1;
+  border-color: #c7d2fe;
+  background: #eef2ff;
+  color: #4338ca;
+  font-weight: 600;
+}
+.cmt-marker:hover {
+  background: #e0e7ff;
+}
+
 .mermaid-wrap {
   background: #fff;
   border: 1px solid #e2e8f0;

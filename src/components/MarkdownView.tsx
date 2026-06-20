@@ -11,6 +11,8 @@ interface Props {
   filePath: string;
   navTarget: NavTarget | null;
   wireframeImages: Set<string>;
+  commentCounts?: Map<string, number>;
+  onAnchorComment?: (anchor: string) => void;
   onCrossLink: (id: string) => void;
   onSearchRef: (text: string) => void;
 }
@@ -187,10 +189,33 @@ export default function MarkdownView({
   filePath,
   navTarget,
   wireframeImages,
+  commentCounts,
+  onAnchorComment,
   onCrossLink,
   onSearchRef,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Decorate headings with inline comment markers.
+  useEffect(() => {
+    const root = containerRef.current;
+    if (!root || !onAnchorComment) return;
+    root.querySelectorAll(".cmt-marker").forEach((e) => e.remove());
+    root.querySelectorAll<HTMLElement>("h1[id],h2[id],h3[id],h4[id]").forEach((h) => {
+      const anchor = h.id;
+      const n = commentCounts?.get(anchor) || 0;
+      const btn = document.createElement("button");
+      btn.className = "cmt-marker" + (n ? " has" : "");
+      btn.textContent = n ? `💬 ${n}` : "💬";
+      btn.title = n ? `${n} comment(s) — click to view` : "Add a comment here";
+      btn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onAnchorComment(anchor);
+      };
+      h.appendChild(btn);
+    });
+  }, [content, commentCounts, onAnchorComment]);
 
   // Scroll + flash on navigation (runs after the memoized body is committed).
   useEffect(() => {

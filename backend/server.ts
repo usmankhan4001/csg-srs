@@ -24,6 +24,8 @@ import {
   requireEditor,
 } from "./auth.ts";
 import { commitFile, isGitRepo, fileHistory } from "./git.ts";
+import { registerUser, loginUser, verifyUserToken } from "./users.ts";
+import { listComments, addComment, commentLog, setResolved } from "./comments.ts";
 
 const app = express();
 app.use(cors());
@@ -124,6 +126,66 @@ app.post("/api/auth", (req, res) => {
   if (!checkPassword(String(password || "")))
     return res.status(401).json({ error: "Incorrect password." });
   res.json({ token: issueToken() });
+});
+
+// ---- Users (open self-registration) -----------------------------------
+app.post("/api/users/register", (req, res) => {
+  const { username, displayName, password } = req.body || {};
+  const r = registerUser(username, displayName, password);
+  if (!r.ok) return res.status(400).json({ error: r.error });
+  res.json({ token: r.token, displayName: String(displayName).trim() });
+});
+
+app.post("/api/users/login", (req, res) => {
+  const { username, password } = req.body || {};
+  const r = loginUser(username, password);
+  if (!r.ok) return res.status(401).json({ error: r.error });
+  res.json({ token: r.token, displayName: r.displayName });
+});
+
+app.get("/api/users/me", (req, res) => {
+  const id = verifyUserToken(bearer(req));
+  res.json({ user: id });
+});
+
+// ---- Comments (read open; write requires a user) ----------------------
+function bearer(req: any): string {
+  const h = req.headers.authorization || "";
+  return h.startsWith("Bearer ") ? h.slice(7) : "";
+}
+
+app.get("/api/comments", (req, res) => {
+  const p = String(req.query.path || "");
+  res.json({ comments: listComments(p) });
+});
+
+app.get("/api/comments/log", (req, res) => {
+  res.json({ comments: commentLog(String(req.query.product || "")) });
+});
+
+app.post("/api/comments", (req, res) => {
+  const id = verifyUserToken(bearer(req));
+  if (!id) return res.status(401).json({ error: "Sign in to comment." });
+  const b = req.body || {};
+  const result = addComment(id, {
+    id: b.id,
+    product: b.product,
+    filePath: b.path ?? b.filePath,
+    anchor: b.anchor,
+    quote: b.quote,
+    text: b.text,
+    createdAt: b.createdAt,
+  });
+  if ("error" in result) return res.status(400).json({ error: result.error });
+  res.json({ comment: result });
+});
+
+app.post("/api/comments/resolve", (req, res) => {
+  const id = verifyUserToken(bearer(req));
+  if (!id) return res.status(401).json({ error: "Sign in required." });
+  const { filePath, commentId, resolved } = req.body || {};
+  const ok = setResolved(String(filePath), String(commentId), !!resolved);
+  res.json({ ok });
 });
 
 // ---- Editing (protected) ----------------------------------------------

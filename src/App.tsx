@@ -13,6 +13,9 @@ import {
   Box,
   ScrollArea,
   Badge,
+  Menu,
+  Avatar,
+  Indicator,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
@@ -24,8 +27,21 @@ import {
   IconFileText,
   IconTable,
   IconWifiOff,
+  IconMessageCircle,
+  IconUser,
+  IconLogout,
 } from "@tabler/icons-react";
 import { useOnline } from "./useOnline";
+import UserAuthModal from "./components/UserAuthModal";
+import CommentsDrawer from "./components/CommentsDrawer";
+import {
+  getUser,
+  logout,
+  syncQueue,
+  fetchComments,
+  type CurrentUser,
+  type CommentT,
+} from "./commentsClient";
 import FileTree from "./components/FileTree";
 import MarkdownView from "./components/MarkdownView";
 import EditorPane from "./components/EditorPane";
@@ -95,6 +111,45 @@ export default function App() {
   const [aiOpen, setAiOpen] = useState(true);
   const online = useOnline();
   const nonce = useRef(0);
+
+  // users + comments
+  const [user, setUser] = useState<CurrentUser | null>(() => getUser());
+  const [showAuth, setShowAuth] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [commentFocus, setCommentFocus] = useState<string | null>(null);
+  const [fileComments, setFileComments] = useState<CommentT[]>([]);
+
+  const refreshComments = useCallback(() => {
+    if (path) fetchComments(path).then(setFileComments);
+    else setFileComments([]);
+  }, [path]);
+
+  useEffect(() => {
+    refreshComments();
+  }, [path, refreshComments]);
+
+  // sync queued offline comments when connectivity returns
+  useEffect(() => {
+    if (online && user) {
+      syncQueue().then((n) => {
+        if (n > 0) {
+          notifications.show({ color: "teal", message: `Synced ${n} offline comment(s)` });
+          refreshComments();
+        }
+      });
+    }
+  }, [online, user, refreshComments]);
+
+  const commentCounts = (() => {
+    const m = new Map<string, number>();
+    for (const c of fileComments) m.set(c.anchor || "", (m.get(c.anchor || "") || 0) + 1);
+    return m;
+  })();
+
+  const onAnchorComment = useCallback((anchor: string) => {
+    setCommentFocus(anchor);
+    setCommentsOpen(true);
+  }, []);
 
   useEffect(() => {
     fetchWireframeImages().then(setWireframeImages);
@@ -277,15 +332,70 @@ export default function App() {
             </Tooltip>
           )}
 
+          <Tooltip label="Comments">
+            <Indicator
+              disabled={fileComments.length === 0}
+              label={fileComments.length}
+              size={16}
+              color="indigo"
+            >
+              <ActionIcon
+                variant={commentsOpen ? "filled" : "default"}
+                onClick={() => {
+                  setCommentFocus(null);
+                  setCommentsOpen(true);
+                }}
+                aria-label="Comments"
+                disabled={view !== "doc" || !path}
+              >
+                <IconMessageCircle size={18} />
+              </ActionIcon>
+            </Indicator>
+          </Tooltip>
+
           <Tooltip label={aiOpen ? "Hide AI assistant" : "Show AI assistant"}>
             <ActionIcon
               variant={aiOpen ? "filled" : "default"}
               onClick={() => setAiOpen((o) => !o)}
               aria-label="Toggle AI assistant"
+              disabled={!online}
             >
               {aiOpen ? <IconMessage size={18} /> : <IconMessageOff size={18} />}
             </ActionIcon>
           </Tooltip>
+
+          {user ? (
+            <Menu shadow="md" width={180} position="bottom-end">
+              <Menu.Target>
+                <Tooltip label={user.displayName}>
+                  <Avatar color="indigo" radius="xl" size={30} style={{ cursor: "pointer" }}>
+                    {user.displayName.split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase()}
+                  </Avatar>
+                </Tooltip>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Label>{user.displayName}</Menu.Label>
+                <Menu.Item
+                  leftSection={<IconLogout size={14} />}
+                  onClick={() => {
+                    logout();
+                    setUser(null);
+                  }}
+                >
+                  Sign out
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+          ) : (
+            <Button
+              size="xs"
+              variant="default"
+              leftSection={<IconUser size={14} />}
+              onClick={() => setShowAuth(true)}
+            >
+              Sign in
+            </Button>
+          )}
         </Group>
       </AppShell.Header>
 
@@ -333,6 +443,8 @@ export default function App() {
                     filePath={path || ""}
                     navTarget={navTarget}
                     wireframeImages={wireframeImages}
+                    commentCounts={commentCounts}
+                    onAnchorComment={onAnchorComment}
                     onCrossLink={handleCrossLink}
                     onSearchRef={handleSearchRef}
                   />
@@ -363,6 +475,24 @@ export default function App() {
       </AppShell.Aside>
 
       <LoginModal opened={showLogin} onSubmit={doLogin} onClose={() => setShowLogin(false)} />
+      <UserAuthModal
+        opened={showAuth}
+        onClose={() => setShowAuth(false)}
+        onAuthed={() => setUser(getUser())}
+      />
+      <CommentsDrawer
+        opened={commentsOpen}
+        onClose={() => setCommentsOpen(false)}
+        product={product}
+        filePath={path || ""}
+        content={content}
+        focusAnchor={commentFocus}
+        online={online}
+        hasUser={!!user}
+        onRequireAuth={() => setShowAuth(true)}
+        onNavigate={(a) => path && openFile(path, a || undefined)}
+        onChanged={refreshComments}
+      />
     </AppShell>
   );
 }
