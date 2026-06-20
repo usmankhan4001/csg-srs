@@ -1,9 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
-import { ROOT } from "./indexer.ts";
+import { DATA_DIR } from "./indexer.ts";
 import type { Identity } from "./users.ts";
 
-const COMMENTS_DIR = path.join(ROOT, "comments");
+const COMMENTS_DIR = path.join(DATA_DIR, "comments");
 
 export interface Comment {
   id: string; // client-generated uuid (for idempotent offline sync)

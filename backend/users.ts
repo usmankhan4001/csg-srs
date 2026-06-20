@@ -1,10 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
-import { ROOT } from "./indexer.ts";
+import { DATA_DIR } from "./indexer.ts";
 
 const SECRET = process.env.AUTH_SECRET || "dev-secret-change-me";
-const USERS_FILE = path.join(ROOT, "users.json");
+const USERS_FILE = path.join(DATA_DIR, "users.json");
 const TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 export interface User {
