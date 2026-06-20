@@ -23,7 +23,9 @@ import {
   IconMessageOff,
   IconFileText,
   IconTable,
+  IconWifiOff,
 } from "@tabler/icons-react";
+import { useOnline } from "./useOnline";
 import FileTree from "./components/FileTree";
 import MarkdownView from "./components/MarkdownView";
 import EditorPane from "./components/EditorPane";
@@ -91,6 +93,7 @@ export default function App() {
 
   const [navOpened, { toggle: toggleNav }] = useDisclosure(true);
   const [aiOpen, setAiOpen] = useState(true);
+  const online = useOnline();
   const nonce = useRef(0);
 
   useEffect(() => {
@@ -252,7 +255,15 @@ export default function App() {
             <SearchBar product={product} onPick={handlePick} />
           </Box>
 
-          {editingEnabled && view === "doc" && !editing && (
+          {!online && (
+            <Tooltip label="Offline — viewing cached docs. AI is unavailable.">
+              <Badge color="orange" variant="light" leftSection={<IconWifiOff size={12} />}>
+                Offline
+              </Badge>
+            </Tooltip>
+          )}
+
+          {editingEnabled && view === "doc" && !editing && online && (
             <Tooltip label={token ? "Edit document" : "Unlock editing"}>
               <Button
                 size="xs"
@@ -343,7 +354,12 @@ export default function App() {
       </AppShell.Main>
 
       <AppShell.Aside p={0}>
-        <ChatPanel product={product} onCrossLink={handleCrossLink} onSource={handleSource} />
+        <ChatPanel
+          product={product}
+          online={online}
+          onCrossLink={handleCrossLink}
+          onSource={handleSource}
+        />
       </AppShell.Aside>
 
       <LoginModal opened={showLogin} onSubmit={doLogin} onClose={() => setShowLogin(false)} />

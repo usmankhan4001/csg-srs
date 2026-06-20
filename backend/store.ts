@@ -246,6 +246,49 @@ export function readDocFile(relPath: string): string | null {
   return fs.readFileSync(abs, "utf8");
 }
 
+// Everything the client needs to run a product fully offline (no AI).
+export interface Bundle {
+  product: string;
+  productName: string;
+  tree: TreeNode[];
+  files: Record<string, string>; // filePath -> markdown
+  chunks: Pick<Chunk, "id" | "product" | "filePath" | "part" | "heading" | "headingAnchor" | "searchText">[];
+  idLookup: Record<string, string>;
+  requirements: RequirementRow[];
+}
+
+export function getBundle(product: string): Bundle {
+  const s = getStore();
+  const pid = resolveProduct(product);
+  const productName = s.products.find((p) => p.id === pid)?.name || pid;
+
+  const inScope = s.chunks.filter((c) => c.product === pid || c.product === SHARED_ROOT);
+
+  const files: Record<string, string> = {};
+  for (const fp of new Set(inScope.map((c) => c.filePath))) {
+    const md = readDocFile(fp);
+    if (md != null) files[fp] = md;
+  }
+
+  return {
+    product: pid,
+    productName,
+    tree: buildTree(pid),
+    files,
+    chunks: inScope.map((c) => ({
+      id: c.id,
+      product: c.product,
+      filePath: c.filePath,
+      part: c.part,
+      heading: c.heading,
+      headingAnchor: c.headingAnchor,
+      searchText: c.searchText,
+    })),
+    idLookup: s.idLookup[pid] || {},
+    requirements: s.requirements[pid] || [],
+  };
+}
+
 export function writeDocFile(relPath: string, content: string): { ok: boolean; abs?: string; error?: string } {
   const abs = safeDocPath(relPath);
   if (!abs) return { ok: false, error: "Invalid path" };

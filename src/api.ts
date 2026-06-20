@@ -6,6 +6,15 @@ import type {
   AppConfig,
   FileResponse,
 } from "./types";
+import {
+  ensureProduct,
+  getTree,
+  getFile,
+  getRequirements,
+  clientSearch,
+  clientLookup,
+  invalidateBundles,
+} from "./dataClient";
 
 async function getJSON(url: string, tries = 5): Promise<Response> {
   let lastErr: unknown;
@@ -30,31 +39,40 @@ export async function fetchConfig(): Promise<AppConfig> {
   return r.json();
 }
 
+// Reads are served from the per-product offline bundle (client-side), so they
+// work without a network connection once the product has been loaded.
 export async function fetchTree(product: string): Promise<TreeNode[]> {
-  const r = await getJSON(`/api/tree?${qp(product)}`);
-  return r.json();
+  await ensureProduct(product);
+  return getTree();
 }
 
 export async function fetchFile(path: string): Promise<FileResponse> {
-  const r = await getJSON(`/api/file?path=${encodeURIComponent(path)}`);
-  if (!r.ok) throw new Error(`Could not load ${path}`);
-  return r.json();
+  const content = getFile(path);
+  if (content == null) throw new Error(`Could not load ${path}`);
+  // history is an online-only nicety; ignore failures (e.g. offline)
+  let history: FileResponse["history"] = [];
+  try {
+    const r = await fetch(`/api/file?path=${encodeURIComponent(path)}`);
+    if (r.ok) history = (await r.json()).history || [];
+  } catch {
+    /* offline — no history */
+  }
+  return { path, content, history };
 }
 
 export async function search(q: string, product: string): Promise<SearchHit[]> {
-  const r = await fetch(`/api/search?q=${encodeURIComponent(q)}&${qp(product)}`);
-  return (await r.json()).results;
+  await ensureProduct(product);
+  return clientSearch(q);
 }
 
 export async function lookupId(id: string, product: string): Promise<LookupResult | null> {
-  const r = await fetch(`/api/lookup/${encodeURIComponent(id)}?${qp(product)}`);
-  if (!r.ok) return null;
-  return r.json();
+  await ensureProduct(product);
+  return clientLookup(id);
 }
 
 export async function fetchRequirements(product: string): Promise<Requirement[]> {
-  const r = await getJSON(`/api/requirements?${qp(product)}`);
-  return r.json();
+  await ensureProduct(product);
+  return getRequirements();
 }
 
 export async function fetchWireframeImages(): Promise<Set<string>> {
@@ -94,5 +112,6 @@ export async function saveFile(
     const { error } = await r.json().catch(() => ({ error: "Save failed" }));
     throw new Error(error || "Save failed");
   }
+  invalidateBundles(); // edited content changed on the server
   return r.json();
 }

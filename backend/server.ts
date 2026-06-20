@@ -14,6 +14,7 @@ import {
   writeDocFile,
   searchChunks,
   extractMessageIds,
+  getBundle,
 } from "./store.ts";
 import { WIREFRAME_DIR } from "./indexer.ts";
 import {
@@ -55,6 +56,11 @@ app.get("/api/config", (_req, res) => {
 
 app.get("/api/tree", (req, res) => {
   res.json(buildTree(String(req.query.product || "")));
+});
+
+// Full offline bundle for one product (tree + files + search + ids + reqs).
+app.get("/api/bundle", (req, res) => {
+  res.json(getBundle(String(req.query.product || "")));
 });
 
 app.get("/api/file", async (req, res) => {

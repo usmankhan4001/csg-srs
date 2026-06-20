@@ -4,8 +4,12 @@ import "@mantine/core/styles.css";
 import "@mantine/notifications/styles.css";
 import { createTheme, MantineProvider } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
+import { registerSW } from "virtual:pwa-register";
 import App from "./App";
 import "./index.css";
+
+// Register the service worker (no-op in dev; active in the production build).
+registerSW({ immediate: true });
 
 const theme = createTheme({
   primaryColor: "indigo",

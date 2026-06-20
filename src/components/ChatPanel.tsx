@@ -43,10 +43,12 @@ function fixMarkdownTables(src: string): string {
 
 export default function ChatPanel({
   product,
+  online,
   onCrossLink,
   onSource,
 }: {
   product: string;
+  online: boolean;
   onCrossLink: (id: string) => void;
   onSource: (s: ChatSource) => void;
 }) {
@@ -237,6 +239,12 @@ export default function ChatPanel({
       </div>
 
       <div className="border-t border-slate-200 p-2 bg-white">
+        {!online && (
+          <div className="mb-2 text-[11px] text-orange-700 bg-orange-50 border border-orange-200 rounded px-2 py-1">
+            You're offline — the AI assistant needs a connection. Docs, search,
+            and comments still work.
+          </div>
+        )}
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -247,12 +255,13 @@ export default function ChatPanel({
             }
           }}
           rows={2}
-          placeholder="Ask about the SRS…"
-          className="w-full resize-none text-sm border border-slate-300 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+          disabled={!online}
+          placeholder={online ? "Ask about the SRS…" : "Unavailable offline"}
+          className="w-full resize-none text-sm border border-slate-300 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:bg-slate-50"
         />
         <button
           onClick={sendMessage}
-          disabled={busy}
+          disabled={busy || !online}
           className="mt-1 w-full bg-indigo-600 text-white text-sm rounded-md py-1.5 disabled:opacity-50 hover:bg-indigo-700"
         >
           {busy ? "Thinking…" : "Send"}
