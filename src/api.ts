@@ -35,8 +35,16 @@ async function getJSON(url: string, tries = 5): Promise<Response> {
 const qp = (product?: string) => (product ? `product=${encodeURIComponent(product)}` : "");
 
 export async function fetchConfig(): Promise<AppConfig> {
-  const r = await getJSON("/api/config");
-  return r.json();
+  try {
+    const r = await getJSON("/api/config");
+    const config: AppConfig = await r.json();
+    try { localStorage.setItem("srs_config_cache", JSON.stringify(config)); } catch {}
+    return config;
+  } catch {
+    const cached = localStorage.getItem("srs_config_cache");
+    if (cached) return JSON.parse(cached) as AppConfig;
+    throw new Error("Could not load configuration (offline, no cache)");
+  }
 }
 
 // Reads are served from the per-product offline bundle (client-side), so they
@@ -76,9 +84,13 @@ export async function fetchRequirements(product: string): Promise<Requirement[]>
 }
 
 export async function fetchWireframeImages(): Promise<Set<string>> {
-  const r = await getJSON("/api/wireframes");
-  const { images } = await r.json();
-  return new Set<string>(images);
+  try {
+    const r = await getJSON("/api/wireframes");
+    const { images } = await r.json();
+    return new Set<string>(images);
+  } catch {
+    return new Set<string>();
+  }
 }
 
 // ---- Auth + editing ----------------------------------------------------

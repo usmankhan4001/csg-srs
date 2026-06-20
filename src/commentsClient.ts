@@ -201,7 +201,14 @@ export async function syncQueue(): Promise<number> {
 }
 
 export async function fetchLog(product: string): Promise<CommentT[]> {
-  const r = await fetch(`/api/comments/log?product=${encodeURIComponent(product)}`);
-  if (!r.ok) return [];
-  return (await r.json()).comments || [];
+  const cacheKey = `srs_log_cache:${product}`;
+  try {
+    const r = await fetch(`/api/comments/log?product=${encodeURIComponent(product)}`);
+    if (!r.ok) throw new Error();
+    const comments: CommentT[] = (await r.json()).comments || [];
+    try { localStorage.setItem(cacheKey, JSON.stringify(comments)); } catch {}
+    return comments;
+  } catch {
+    try { return JSON.parse(localStorage.getItem(cacheKey) || "[]"); } catch { return []; }
+  }
 }

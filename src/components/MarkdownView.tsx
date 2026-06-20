@@ -215,6 +215,7 @@ export default function MarkdownView({
   const [composing, setComposing] = useState(false);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const selRangeRef = useRef<Range | null>(null);
 
   // ----- inline comment highlights (Google-Docs style) -----
   // de-duplicate by quote so multiple comments on the same text share one mark
@@ -259,18 +260,58 @@ export default function MarkdownView({
     const root = containerRef.current;
     if (!root || !canComment) return;
     const onUp = (e: MouseEvent) => {
-      if ((e.target as HTMLElement)?.closest?.(".cmt-overlay")) return;
+      if ((e.target as HTMLElement)?.closest?.(".cmt-composer-card, .cmt-margin-icon")) return;
       const ctx = readSelection(root);
       if (ctx) {
+        const s = window.getSelection();
+        selRangeRef.current = s && s.rangeCount > 0 ? s.getRangeAt(0).cloneRange() : null;
         setSel(ctx);
         setComposing(false);
       } else if (!composing) {
         setSel(null);
+        selRangeRef.current = null;
       }
     };
     document.addEventListener("mouseup", onUp);
     return () => document.removeEventListener("mouseup", onUp);
   }, [canComment, composing]);
+
+  // click-outside dismissal for the composer card
+  useEffect(() => {
+    if (!composing) return;
+    const onClick = (e: MouseEvent) => {
+      if ((e.target as HTMLElement)?.closest?.(".cmt-composer-card, .cmt-margin-icon")) return;
+      setComposing(false);
+      setSel(null);
+      selRangeRef.current = null;
+    };
+    const t = setTimeout(() => document.addEventListener("mousedown", onClick), 150);
+    return () => { clearTimeout(t); document.removeEventListener("mousedown", onClick); };
+  }, [composing]);
+
+  // temporary blue highlight on the selected text while composing
+  useEffect(() => {
+    const root = containerRef.current;
+    if (!root) return;
+    const clearTemp = () => {
+      root.querySelectorAll<HTMLElement>("mark.cmt-composing-highlight").forEach((m) => {
+        const parent = m.parentNode;
+        if (!parent) return;
+        while (m.firstChild) parent.insertBefore(m.firstChild, m);
+        parent.removeChild(m);
+        parent.normalize();
+      });
+    };
+    if (composing && selRangeRef.current) {
+      try {
+        const mark = document.createElement("mark");
+        mark.className = "cmt-composing-highlight";
+        selRangeRef.current.surroundContents(mark);
+        window.getSelection()?.removeAllRanges();
+      } catch { /* cross-boundary selection — skip temp highlight */ }
+    }
+    return clearTemp;
+  }, [composing]);
 
   const submitInline = async () => {
     if (!sel || !draft.trim() || !onAddInline) return;
@@ -286,6 +327,7 @@ export default function MarkdownView({
       setDraft("");
       setSel(null);
       setComposing(false);
+      selRangeRef.current = null;
       window.getSelection()?.removeAllRanges();
     } finally {
       setBusy(false);
@@ -308,10 +350,30 @@ export default function MarkdownView({
     return () => clearTimeout(t);
   }, [navTarget?.nonce, content]);
 
-  // position of the floating selection UI (viewport coords from the rect)
-  const fx = sel ? Math.max(8, sel.rect.left) : 0;
-  const fyTop = sel ? sel.rect.top : 0;
-  const fyBottom = sel ? sel.rect.bottom : 0;
+  // compute margin position for the comment icon and card
+  const marginPos = (() => {
+    const root = containerRef.current;
+    if (!root || !sel) return null;
+    const rootRect = root.getBoundingClientRect();
+    const gap = 16;
+    const cardW = 280;
+    const rightSpace = window.innerWidth - rootRect.right;
+    const useMargin = rightSpace > cardW + gap * 2;
+    return {
+      iconLeft: useMargin ? rootRect.right + gap : rootRect.right - 48,
+      iconTop: Math.max(64, (sel.rect.top + sel.rect.bottom) / 2 - 18),
+      cardLeft: useMargin
+        ? rootRect.right + gap
+        : Math.max(gap, window.innerWidth - cardW - gap * 2),
+      cardTop: Math.max(64, Math.min(sel.rect.top - 8, window.innerHeight - 380)),
+    };
+  })();
+
+  const dismissComposer = () => {
+    setComposing(false);
+    setSel(null);
+    selRangeRef.current = null;
+  };
 
   return (
     <div className="prose-srs" ref={containerRef} style={{ position: "relative" }}>
@@ -322,69 +384,65 @@ export default function MarkdownView({
         onSearchRef={onSearchRef}
       />
 
-      {/* floating "Comment" button on a fresh selection */}
-      {sel && !composing && (
+      {/* Google Docs-style margin comment icon */}
+      {sel && !composing && marginPos && (
         <div
-          className="cmt-overlay"
-          style={{ position: "fixed", left: fx, top: Math.max(8, fyTop - 40), zIndex: 400 }}
+          className="cmt-margin-icon"
+          style={{ left: marginPos.iconLeft, top: marginPos.iconTop }}
         >
-          <Button
-            size="xs"
-            leftSection={<IconMessagePlus size={14} />}
+          <button
+            title="Add comment"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               setComposing(true);
               setDraft("");
             }}
           >
-            Comment
-          </Button>
+            <IconMessagePlus size={18} />
+          </button>
         </div>
       )}
 
-      {/* inline composer */}
-      {sel && composing && (
+      {/* Google Docs-style margin composer card */}
+      {sel && composing && marginPos && (
         <Paper
           withBorder
-          shadow="md"
-          p="xs"
-          className="cmt-overlay"
-          style={{ position: "fixed", left: fx, top: fyBottom + 8, zIndex: 400, width: 300 }}
+          shadow="lg"
+          p="sm"
+          radius="md"
+          className="cmt-composer-card"
+          style={{ left: marginPos.cardLeft, top: marginPos.cardTop }}
           onMouseDown={(e) => e.stopPropagation()}
         >
-          <Text size="xs" c="dimmed" lineClamp={2} mb={6} fs="italic">
-            “{sel.quote}”
+          <Text size="xs" c="dimmed" lineClamp={2} fs="italic" className="cmt-quote-bar">
+            {sel.quote}
           </Text>
           <Textarea
             data-autofocus
+            autoFocus
             autosize
             minRows={2}
+            maxRows={6}
             placeholder="Add a comment…"
             value={draft}
             onChange={(e) => setDraft(e.currentTarget.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submitInline();
-              if (e.key === "Escape") {
-                setComposing(false);
-                setSel(null);
-              }
+              if (e.key === "Escape") dismissComposer();
             }}
+            styles={{ input: { fontSize: 13 } }}
           />
-          <Group justify="flex-end" gap="xs" mt="xs">
-            <Button
-              size="xs"
-              variant="default"
-              onClick={() => {
-                setComposing(false);
-                setSel(null);
-              }}
-            >
+          <Group justify="flex-end" gap="xs" mt={8}>
+            <Button size="xs" variant="subtle" color="gray" onClick={dismissComposer}>
               Cancel
             </Button>
             <Button size="xs" loading={busy} disabled={!draft.trim()} onClick={submitInline}>
               Comment
             </Button>
           </Group>
+          <Text size="xs" c="dimmed" mt={4} ta="right">
+            {navigator.platform?.includes?.("Mac") ? "\u2318" : "Ctrl"}+Enter to submit
+          </Text>
         </Paper>
       )}
     </div>

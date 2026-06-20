@@ -31,7 +31,7 @@ export default defineConfig({
           {
             // per-product offline bundle + config: fresh when online, cached offline
             urlPattern: ({ url }) =>
-              url.pathname === "/api/bundle" || url.pathname === "/api/config",
+              url.pathname === "/api/bundle" || url.pathname === "/api/config" || url.pathname === "/api/wireframes",
             handler: "NetworkFirst",
             options: {
               cacheName: "srs-data",

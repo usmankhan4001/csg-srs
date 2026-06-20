@@ -165,6 +165,66 @@ mark.cmt-highlight:hover {
   background: #fde68a;
 }
 
+/* Google Docs-style margin comment icon */
+.cmt-margin-icon {
+  position: fixed;
+  z-index: 400;
+  animation: cmtFadeIn 0.15s ease-out;
+}
+.cmt-margin-icon button {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1.5px solid #c7d2fe;
+  background: #ffffff;
+  color: #4f46e5;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+.cmt-margin-icon button:hover {
+  background: #eef2ff;
+  border-color: #818cf8;
+  box-shadow: 0 4px 12px rgba(79,70,229,0.2);
+  transform: scale(1.08);
+}
+
+/* Google Docs-style margin composer card */
+.cmt-composer-card {
+  position: fixed;
+  z-index: 401;
+  width: 280px;
+  animation: cmtSlideIn 0.2s ease-out;
+}
+.cmt-composer-card .cmt-quote-bar {
+  border-left: 3px solid #3b82f6;
+  padding-left: 8px;
+  margin-bottom: 8px;
+}
+
+/* Temporary blue highlight on text being commented */
+mark.cmt-composing-highlight {
+  background: #dbeafe;
+  border-bottom: 2px solid #3b82f6;
+  border-radius: 2px;
+  padding: 0 1px;
+  color: inherit;
+  transition: background 0.15s;
+}
+
+@keyframes cmtFadeIn {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes cmtSlideIn {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
 /* inline comment markers on headings */
 .prose-srs h1,
 .prose-srs h2,
