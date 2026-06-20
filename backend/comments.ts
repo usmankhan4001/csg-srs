@@ -9,8 +9,10 @@ export interface Comment {
   id: string; // client-generated uuid (for idempotent offline sync)
   product: string;
   filePath: string;
-  anchor: string; // heading anchor the comment is attached to ("" = general)
-  quote?: string; // optional quoted text for context
+  anchor: string; // nearest heading anchor (scopes the quote; "" = general)
+  quote?: string; // the exact selected text the comment is attached to
+  prefix?: string; // a few chars of text before the quote (disambiguation)
+  suffix?: string; // a few chars of text after the quote
   author: string; // username
   authorName: string; // display name
   text: string;
@@ -49,6 +51,8 @@ export function addComment(
     filePath: string;
     anchor?: string;
     quote?: string;
+    prefix?: string;
+    suffix?: string;
     text: string;
     createdAt?: string;
   }
@@ -64,6 +68,8 @@ export function addComment(
     filePath: input.filePath,
     anchor: input.anchor || "",
     quote: input.quote,
+    prefix: input.prefix,
+    suffix: input.suffix,
     author: who.username,
     authorName: who.displayName,
     text: input.text.trim(),

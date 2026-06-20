@@ -31,7 +31,7 @@ interface Props {
   product: string;
   filePath: string;
   content: string;
-  focusAnchor: string | null;
+  focusCommentId: string | null;
   online: boolean;
   hasUser: boolean;
   onRequireAuth: () => void;
@@ -53,7 +53,7 @@ export default function CommentsDrawer({
   product,
   filePath,
   content,
-  focusAnchor,
+  focusCommentId,
   online,
   hasUser,
   onRequireAuth,
@@ -99,9 +99,21 @@ export default function CommentsDrawer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened, tab, product]);
 
+  // scroll to / flash a specific comment (e.g. clicked highlight)
   useEffect(() => {
-    if (focusAnchor != null) setAnchor(focusAnchor);
-  }, [focusAnchor]);
+    if (!opened || !focusCommentId) return;
+    setTab("doc");
+    const t = setTimeout(() => {
+      const el = document.getElementById(`cmt-${focusCommentId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.remove("flash-hi");
+        void el.offsetWidth;
+        el.classList.add("flash-hi");
+      }
+    }, 250);
+    return () => clearTimeout(t);
+  }, [focusCommentId, opened, comments]);
 
   const submit = async () => {
     if (!text.trim()) return;
@@ -132,7 +144,7 @@ export default function CommentsDrawer({
   }, [comments]);
 
   const Item = ({ c, showFile }: { c: CommentT; showFile?: boolean }) => (
-    <Paper withBorder p="xs" radius="md">
+    <Paper withBorder p="xs" radius="md" id={`cmt-${c.id}`}>
       <Group gap="xs" mb={4} wrap="nowrap">
         <Avatar size={24} radius="xl" color="indigo">
           {initials(c.authorName || "?")}

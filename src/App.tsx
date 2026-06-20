@@ -40,6 +40,7 @@ import {
   logout,
   syncQueue,
   fetchComments,
+  addComment,
   type CurrentUser,
   type CommentT,
 } from "./commentsClient";
@@ -141,14 +142,23 @@ export default function App() {
     }
   }, [online, user, refreshComments]);
 
-  const commentCounts = (() => {
-    const m = new Map<string, number>();
-    for (const c of fileComments) m.set(c.anchor || "", (m.get(c.anchor || "") || 0) + 1);
-    return m;
-  })();
+  // add an inline (text-selection) comment
+  const addInlineComment = useCallback(
+    async (p: { quote: string; prefix: string; suffix: string; anchor: string; text: string }) => {
+      if (!getUser()) {
+        setShowAuth(true);
+        return;
+      }
+      if (!path) return;
+      await addComment({ product, filePath: path, ...p });
+      refreshComments();
+      notifications.show({ color: "teal", message: "Comment added" });
+    },
+    [path, product, refreshComments]
+  );
 
-  const onAnchorComment = useCallback((anchor: string) => {
-    setCommentFocus(anchor);
+  const openCommentThread = useCallback((id: string) => {
+    setCommentFocus(id);
     setCommentsOpen(true);
   }, []);
 
@@ -444,8 +454,10 @@ export default function App() {
                     filePath={path || ""}
                     navTarget={navTarget}
                     wireframeImages={wireframeImages}
-                    commentCounts={commentCounts}
-                    onAnchorComment={onAnchorComment}
+                    comments={fileComments}
+                    canComment
+                    onAddInline={addInlineComment}
+                    onOpenComment={openCommentThread}
                     onCrossLink={handleCrossLink}
                     onSearchRef={handleSearchRef}
                   />
@@ -487,7 +499,7 @@ export default function App() {
         product={product}
         filePath={path || ""}
         content={content}
-        focusAnchor={commentFocus}
+        focusCommentId={commentFocus}
         online={online}
         hasUser={!!user}
         onRequireAuth={() => setShowAuth(true)}

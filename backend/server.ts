@@ -173,6 +173,8 @@ app.post("/api/comments", (req, res) => {
     filePath: b.path ?? b.filePath,
     anchor: b.anchor,
     quote: b.quote,
+    prefix: b.prefix,
+    suffix: b.suffix,
     text: b.text,
     createdAt: b.createdAt,
   });

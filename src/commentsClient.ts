@@ -6,6 +6,8 @@ export interface CommentT {
   filePath: string;
   anchor: string;
   quote?: string;
+  prefix?: string;
+  suffix?: string;
   author: string;
   authorName: string;
   text: string;
@@ -126,6 +128,8 @@ export async function addComment(input: {
   filePath: string;
   anchor: string;
   quote?: string;
+  prefix?: string;
+  suffix?: string;
   text: string;
 }): Promise<CommentT> {
   const user = getUser();
@@ -136,6 +140,8 @@ export async function addComment(input: {
     filePath: input.filePath,
     anchor: input.anchor,
     quote: input.quote,
+    prefix: input.prefix,
+    suffix: input.suffix,
     author: user.username,
     authorName: user.displayName,
     text: input.text.trim(),
@@ -165,6 +171,8 @@ async function postComment(c: CommentT, token: string): Promise<boolean> {
         path: c.filePath,
         anchor: c.anchor,
         quote: c.quote,
+        prefix: c.prefix,
+        suffix: c.suffix,
         text: c.text,
         createdAt: c.createdAt,
       }),

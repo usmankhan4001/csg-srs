@@ -1,18 +1,32 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { Button, Textarea, Paper, Group, Text } from "@mantine/core";
+import { IconMessagePlus } from "@tabler/icons-react";
 import Mermaid from "./Mermaid";
 import { rehypeCrossLinks } from "../crosslink";
 import { slugify, nodeText, SCR_RE } from "../util";
+import { readSelection, applyHighlights, type SelectionContext } from "../inlineComments";
 import type { NavTarget } from "../types";
+import type { CommentT } from "../commentsClient";
+
+export interface InlineCommentPayload {
+  quote: string;
+  prefix: string;
+  suffix: string;
+  anchor: string;
+  text: string;
+}
 
 interface Props {
   content: string;
   filePath: string;
   navTarget: NavTarget | null;
   wireframeImages: Set<string>;
-  commentCounts?: Map<string, number>;
-  onAnchorComment?: (anchor: string) => void;
+  comments?: CommentT[];
+  canComment?: boolean;
+  onAddInline?: (p: InlineCommentPayload) => Promise<void> | void;
+  onOpenComment?: (id: string) => void;
   onCrossLink: (id: string) => void;
   onSearchRef: (text: string) => void;
 }
@@ -189,33 +203,94 @@ export default function MarkdownView({
   filePath,
   navTarget,
   wireframeImages,
-  commentCounts,
-  onAnchorComment,
+  comments,
+  canComment,
+  onAddInline,
+  onOpenComment,
   onCrossLink,
   onSearchRef,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [sel, setSel] = useState<SelectionContext | null>(null);
+  const [composing, setComposing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  // Decorate headings with inline comment markers.
+  // ----- inline comment highlights (Google-Docs style) -----
+  // de-duplicate by quote so multiple comments on the same text share one mark
   useEffect(() => {
     const root = containerRef.current;
-    if (!root || !onAnchorComment) return;
-    root.querySelectorAll(".cmt-marker").forEach((e) => e.remove());
-    root.querySelectorAll<HTMLElement>("h1[id],h2[id],h3[id],h4[id]").forEach((h) => {
-      const anchor = h.id;
-      const n = commentCounts?.get(anchor) || 0;
-      const btn = document.createElement("button");
-      btn.className = "cmt-marker" + (n ? " has" : "");
-      btn.textContent = n ? `💬 ${n}` : "💬";
-      btn.title = n ? `${n} comment(s) — click to view` : "Add a comment here";
-      btn.onclick = (e) => {
+    if (!root) return;
+    const reps: CommentT[] = [];
+    const counts = new Map<string, number>();
+    const seen = new Map<string, CommentT>();
+    for (const c of comments || []) {
+      if (!c.quote) continue;
+      const key = `${c.anchor}|${c.quote}`;
+      if (seen.has(key)) {
+        const rep = seen.get(key)!;
+        counts.set(rep.id, (counts.get(rep.id) || 1) + 1);
+      } else {
+        seen.set(key, c);
+        reps.push(c);
+        counts.set(c.id, 1);
+      }
+    }
+    applyHighlights(root, reps, counts);
+  }, [content, comments, navTarget?.nonce]);
+
+  // click a highlight -> open its thread
+  useEffect(() => {
+    const root = containerRef.current;
+    if (!root || !onOpenComment) return;
+    const handler = (e: MouseEvent) => {
+      const mark = (e.target as HTMLElement)?.closest?.("mark.cmt-highlight") as HTMLElement | null;
+      if (mark?.dataset.commentId) {
         e.preventDefault();
-        e.stopPropagation();
-        onAnchorComment(anchor);
-      };
-      h.appendChild(btn);
-    });
-  }, [content, commentCounts, onAnchorComment]);
+        onOpenComment(mark.dataset.commentId);
+      }
+    };
+    root.addEventListener("click", handler);
+    return () => root.removeEventListener("click", handler);
+  }, [onOpenComment]);
+
+  // capture a text selection to offer "Comment"
+  useEffect(() => {
+    const root = containerRef.current;
+    if (!root || !canComment) return;
+    const onUp = (e: MouseEvent) => {
+      if ((e.target as HTMLElement)?.closest?.(".cmt-overlay")) return;
+      const ctx = readSelection(root);
+      if (ctx) {
+        setSel(ctx);
+        setComposing(false);
+      } else if (!composing) {
+        setSel(null);
+      }
+    };
+    document.addEventListener("mouseup", onUp);
+    return () => document.removeEventListener("mouseup", onUp);
+  }, [canComment, composing]);
+
+  const submitInline = async () => {
+    if (!sel || !draft.trim() || !onAddInline) return;
+    setBusy(true);
+    try {
+      await onAddInline({
+        quote: sel.quote,
+        prefix: sel.prefix,
+        suffix: sel.suffix,
+        anchor: sel.anchor,
+        text: draft.trim(),
+      });
+      setDraft("");
+      setSel(null);
+      setComposing(false);
+      window.getSelection()?.removeAllRanges();
+    } finally {
+      setBusy(false);
+    }
+  };
 
   // Scroll + flash on navigation (runs after the memoized body is committed).
   useEffect(() => {
@@ -233,14 +308,85 @@ export default function MarkdownView({
     return () => clearTimeout(t);
   }, [navTarget?.nonce, content]);
 
+  // position of the floating selection UI (viewport coords from the rect)
+  const fx = sel ? Math.max(8, sel.rect.left) : 0;
+  const fyTop = sel ? sel.rect.top : 0;
+  const fyBottom = sel ? sel.rect.bottom : 0;
+
   return (
-    <div className="prose-srs" ref={containerRef}>
+    <div className="prose-srs" ref={containerRef} style={{ position: "relative" }}>
       <MarkdownBody
         content={content}
         wireframeImages={wireframeImages}
         onCrossLink={onCrossLink}
         onSearchRef={onSearchRef}
       />
+
+      {/* floating "Comment" button on a fresh selection */}
+      {sel && !composing && (
+        <div
+          className="cmt-overlay"
+          style={{ position: "fixed", left: fx, top: Math.max(8, fyTop - 40), zIndex: 400 }}
+        >
+          <Button
+            size="xs"
+            leftSection={<IconMessagePlus size={14} />}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              setComposing(true);
+              setDraft("");
+            }}
+          >
+            Comment
+          </Button>
+        </div>
+      )}
+
+      {/* inline composer */}
+      {sel && composing && (
+        <Paper
+          withBorder
+          shadow="md"
+          p="xs"
+          className="cmt-overlay"
+          style={{ position: "fixed", left: fx, top: fyBottom + 8, zIndex: 400, width: 300 }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <Text size="xs" c="dimmed" lineClamp={2} mb={6} fs="italic">
+            “{sel.quote}”
+          </Text>
+          <Textarea
+            data-autofocus
+            autosize
+            minRows={2}
+            placeholder="Add a comment…"
+            value={draft}
+            onChange={(e) => setDraft(e.currentTarget.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submitInline();
+              if (e.key === "Escape") {
+                setComposing(false);
+                setSel(null);
+              }
+            }}
+          />
+          <Group justify="flex-end" gap="xs" mt="xs">
+            <Button
+              size="xs"
+              variant="default"
+              onClick={() => {
+                setComposing(false);
+                setSel(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button size="xs" loading={busy} disabled={!draft.trim()} onClick={submitInline}>
+              Comment
+            </Button>
+          </Group>
+        </Paper>
+      )}
     </div>
   );
 }

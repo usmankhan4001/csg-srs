@@ -151,6 +151,20 @@ body {
   border-radius: 4px;
 }
 
+/* inline comment highlights (Google-Docs style) */
+mark.cmt-highlight {
+  background: #fef3c7;
+  border-bottom: 2px solid #f59e0b;
+  border-radius: 2px;
+  padding: 0 1px;
+  cursor: pointer;
+  color: inherit;
+  transition: background 0.12s;
+}
+mark.cmt-highlight:hover {
+  background: #fde68a;
+}
+
 /* inline comment markers on headings */
 .prose-srs h1,
 .prose-srs h2,
