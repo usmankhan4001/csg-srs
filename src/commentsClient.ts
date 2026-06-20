@@ -160,6 +160,41 @@ export async function addComment(input: {
   return comment;
 }
 
+export async function resolveComment(
+  filePath: string,
+  commentId: string,
+  resolved: boolean,
+  token: string
+): Promise<boolean> {
+  try {
+    const r = await fetch("/api/comments/resolve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ filePath, commentId, resolved }),
+    });
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function deleteCommentApi(
+  filePath: string,
+  commentId: string,
+  token: string
+): Promise<boolean> {
+  try {
+    const r = await fetch("/api/comments", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ filePath, commentId }),
+    });
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
+
 async function postComment(c: CommentT, token: string): Promise<boolean> {
   try {
     const r = await fetch("/api/comments", {

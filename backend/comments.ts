@@ -89,6 +89,16 @@ export function setResolved(filePath: string, id: string, resolved: boolean): bo
   return true;
 }
 
+export function deleteComment(filePath: string, id: string, username: string): { ok: boolean; error?: string } {
+  const comments = read(filePath);
+  const idx = comments.findIndex((x) => x.id === id);
+  if (idx < 0) return { ok: false, error: "Comment not found" };
+  if (comments[idx].author !== username) return { ok: false, error: "Unauthorized" };
+  comments.splice(idx, 1);
+  write(filePath, comments);
+  return { ok: true };
+}
+
 // The full comment log for a product (newest first).
 export function commentLog(product: string): Comment[] {
   if (!fs.existsSync(COMMENTS_DIR)) return [];

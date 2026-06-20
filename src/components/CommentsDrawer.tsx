@@ -14,14 +14,16 @@ import {
   ScrollArea,
   Anchor,
   Divider,
+  ActionIcon,
 } from "@mantine/core";
-import { IconClockHour4 } from "@tabler/icons-react";
+import { IconClockHour4, IconTrash } from "@tabler/icons-react";
 import { slugify } from "../util";
 import {
   fetchComments,
   addComment,
   fetchLog,
   getUser,
+  deleteCommentApi,
   type CommentT,
 } from "../commentsClient";
 
@@ -35,7 +37,7 @@ interface Props {
   online: boolean;
   hasUser: boolean;
   onRequireAuth: () => void;
-  onNavigate: (anchor: string) => void;
+  onNavigate: (anchor: string, idTarget?: string) => void;
   onChanged: () => void; // notify parent to refresh counts
 }
 
@@ -143,22 +145,53 @@ export default function CommentsDrawer({
     return [...m.entries()];
   }, [comments]);
 
+  const currentUser = getUser();
+
+  const handleDelete = async (c: CommentT) => {
+    if (!online || !currentUser) return;
+    setBusy(true);
+    try {
+      const ok = await deleteCommentApi(c.filePath, c.id, currentUser.token);
+      if (ok) {
+        setComments((prev) => prev.filter((x) => x.id !== c.id));
+        setLog((prev) => prev.filter((x) => x.id !== c.id));
+        onChanged();
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const Item = ({ c, showFile }: { c: CommentT; showFile?: boolean }) => (
     <Paper withBorder p="xs" radius="md" id={`cmt-${c.id}`}>
-      <Group gap="xs" mb={4} wrap="nowrap">
-        <Avatar size={24} radius="xl" color="indigo">
-          {initials(c.authorName || "?")}
-        </Avatar>
-        <Text size="sm" fw={600}>
-          {c.authorName}
-        </Text>
-        <Text size="xs" c="dimmed">
-          {when(c.createdAt)}
-        </Text>
-        {c.pending && (
-          <Badge size="xs" color="orange" variant="light" leftSection={<IconClockHour4 size={10} />}>
-            unsynced
-          </Badge>
+      <Group gap="xs" mb={4} wrap="nowrap" justify="space-between">
+        <Group gap="xs" wrap="nowrap">
+          <Avatar size={24} radius="xl" color="indigo">
+            {initials(c.authorName || "?")}
+          </Avatar>
+          <Text size="sm" fw={600}>
+            {c.authorName}
+          </Text>
+          <Text size="xs" c="dimmed">
+            {when(c.createdAt)}
+          </Text>
+          {c.pending && (
+            <Badge size="xs" color="orange" variant="light" leftSection={<IconClockHour4 size={10} />}>
+              unsynced
+            </Badge>
+          )}
+        </Group>
+        {online && currentUser?.username === c.author && (
+          <ActionIcon
+            variant="subtle"
+            color="red"
+            size="sm"
+            onClick={() => handleDelete(c)}
+            loading={busy}
+            title="Delete comment"
+          >
+            <IconTrash size={14} />
+          </ActionIcon>
         )}
       </Group>
       {c.quote && (
@@ -171,7 +204,7 @@ export default function CommentsDrawer({
         size="xs"
         mt={4}
         onClick={() => {
-          onNavigate(c.anchor);
+          onNavigate(c.anchor, c.id);
           onClose();
         }}
       >

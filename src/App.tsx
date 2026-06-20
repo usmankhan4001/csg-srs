@@ -364,16 +364,17 @@ export default function App() {
             </Indicator>
           </Tooltip>
 
-          <Tooltip label={aiOpen ? "Hide AI assistant" : "Show AI assistant"}>
-            <ActionIcon
-              variant={aiOpen ? "filled" : "default"}
-              onClick={() => setAiOpen((o) => !o)}
-              aria-label="Toggle AI assistant"
-              disabled={!online}
-            >
-              {aiOpen ? <IconMessage size={18} /> : <IconMessageOff size={18} />}
-            </ActionIcon>
-          </Tooltip>
+          {online && (
+            <Tooltip label={aiOpen ? "Hide AI assistant" : "Show AI assistant"}>
+              <ActionIcon
+                variant={aiOpen ? "filled" : "default"}
+                onClick={() => setAiOpen((o) => !o)}
+                aria-label="Toggle AI assistant"
+              >
+                {aiOpen ? <IconMessage size={18} /> : <IconMessageOff size={18} />}
+              </ActionIcon>
+            </Tooltip>
+          )}
 
           {user ? (
             <Menu shadow="md" width={180} position="bottom-end">
@@ -503,7 +504,7 @@ export default function App() {
         online={online}
         hasUser={!!user}
         onRequireAuth={() => setShowAuth(true)}
-        onNavigate={(a) => path && openFile(path, a || undefined)}
+        onNavigate={(a, idTarget) => path && openFile(path, a || undefined, undefined, idTarget)}
         onChanged={refreshComments}
       />
       <InstallPrompt />

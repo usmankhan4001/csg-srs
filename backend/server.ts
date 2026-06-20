@@ -25,7 +25,13 @@ import {
 } from "./auth.ts";
 import { commitFile, isGitRepo, fileHistory } from "./git.ts";
 import { registerUser, loginUser, verifyUserToken } from "./users.ts";
-import { listComments, addComment, commentLog, setResolved } from "./comments.ts";
+import {
+  listComments,
+  addComment,
+  setResolved,
+  deleteComment,
+  commentLog,
+} from "./comments.ts";
 
 const app = express();
 app.use(cors());
@@ -188,6 +194,15 @@ app.post("/api/comments/resolve", (req, res) => {
   const { filePath, commentId, resolved } = req.body || {};
   const ok = setResolved(String(filePath), String(commentId), !!resolved);
   res.json({ ok });
+});
+
+app.delete("/api/comments", (req, res) => {
+  const id = verifyUserToken(bearer(req));
+  if (!id) return res.status(401).json({ error: "Sign in required." });
+  const { filePath, commentId } = req.body || {};
+  const result = deleteComment(String(filePath), String(commentId), id.username);
+  if (!result.ok) return res.status(403).json({ error: result.error });
+  res.json({ ok: true });
 });
 
 // ---- Editing (protected) ----------------------------------------------

@@ -340,7 +340,10 @@ export default function MarkdownView({
     const root = containerRef.current;
     const run = () => {
       let el: HTMLElement | null = null;
-      if (navTarget.idTarget) el = findIdElement(root, navTarget.idTarget);
+      if (navTarget.idTarget) {
+        el = root.querySelector(`mark[data-comment-id="${navTarget.idTarget}"]`);
+        if (!el) el = findIdElement(root, navTarget.idTarget);
+      }
       if (!el && navTarget.anchor)
         el = root.querySelector(`#${CSS.escape(navTarget.anchor)}`);
       if (el) flash(el);
