@@ -4,6 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>P1 LMS+SMS — SRS Knowledge Base</title>
+    <script>
+      // Capture the install prompt as early as possible — Chromium can fire it
+      // before the React app mounts. The InstallPrompt component reads this.
+      window.__installPromptEvent = null;
+      window.addEventListener("beforeinstallprompt", function (e) {
+        e.preventDefault();
+        window.__installPromptEvent = e;
+        window.dispatchEvent(new Event("installpromptready"));
+      });
+    </script>
   </head>
   <body>
     <div id="root"></div>

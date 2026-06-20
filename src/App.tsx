@@ -34,6 +34,7 @@ import {
 import { useOnline } from "./useOnline";
 import UserAuthModal from "./components/UserAuthModal";
 import CommentsDrawer from "./components/CommentsDrawer";
+import InstallPrompt from "./components/InstallPrompt";
 import {
   getUser,
   logout,
@@ -493,6 +494,7 @@ export default function App() {
         onNavigate={(a) => path && openFile(path, a || undefined)}
         onChanged={refreshComments}
       />
+      <InstallPrompt />
     </AppShell>
   );
 }
