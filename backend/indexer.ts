@@ -138,7 +138,10 @@ export interface Chunk {
   file: string;
   fileName: string;
   filePath: string; // relative to repo root (posix)
-  part: string;
+  part: string; // display title, disambiguated with a module qualifier when
+  // multiple files in the product share the same H1 (see disambiguateParts)
+  partGroup: string; // the pre-disambiguation base title — stable grouping
+  // key for the sidebar tree's virtual "Part N" folders on flat products
   layer: string;
   heading: string;
   headingAnchor: string;
@@ -238,6 +241,7 @@ function chunkFile(filePath: string, product: string): Chunk[] {
       fileName,
       filePath: relPath,
       part,
+      partGroup: part, // overwritten by disambiguateParts() if this H1 repeats
       layer,
       heading: seg.heading,
       headingAnchor: slugify(seg.heading),
@@ -268,6 +272,7 @@ export function buildIndex() {
     const files = walk(path.join(DATA_DIR, p.id)).sort();
     const pc: Chunk[] = [];
     for (const f of files) pc.push(...chunkFile(f, p.id));
+    disambiguateParts(pc);
     perProductChunks[p.id] = pc;
     chunks.push(...pc);
   }
@@ -326,7 +331,7 @@ function buildIdLookup(scope: Chunk[]): Record<string, string> {
 // doesn't carry one (P1 keeps one module per "## M01 — ..." heading; P2/P3
 // spread each module across its own file with generic sub-headings like
 // "## Requirement List", so the filename is the only thing that names it).
-function moduleFromFileName(fileName: string): string {
+export function moduleFromFileName(fileName: string): string {
   let s = fileName.replace(/\.md$/i, "").replace(/_v\d+(\.\d+)?$/i, "");
   const stop = new Set([
     "master", "srs", "part", "p1", "p2", "p3", "p4", "lms", "sms", "aic",
@@ -337,8 +342,82 @@ function moduleFromFileName(fileName: string): string {
     .filter((p) => !stop.has(p.toLowerCase()) && !/^part\d*$/i.test(p) && !/^\d+$/.test(p));
   return parts
     .join(" ")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2") // AIArchitecture -> AI Architecture
     .replace(/([a-z0-9])([A-Z])/g, "$1 $2") // TutorEngine -> Tutor Engine
     .trim();
+}
+
+// P1 has one file per "Part", so its H1 (e.g. "PART 4 — FUNCTIONAL
+// REQUIREMENTS") is already a unique, useful label. P2/P3 spread one Part
+// across many files (one per module/screen), so EVERY one of those files has
+// the identical H1 — which would make every AI citation and search-result
+// group for, say, all 17 P2 modules read as the same "Part 4" label. Detect
+// that collision per product and disambiguate with the file's own module
+// name, so citations/search stay specific ("Part 4 — Functional Requirements
+// — Lead Intake" instead of 17-way-identical "Part 4 — Functional
+// Requirements").
+// Some products' files use a single generic wrapper H1 on almost every file
+// (P3: "# MASTER SRS — P3 AI STUDENT COACH" everywhere) with only a handful
+// carrying the real "# PART N — ..." title. The filename's own "PartN" token
+// is the one signal that's consistent across every file, so group by that
+// number first, then borrow the most specific title seen for that number
+// (falling back to a synthesized "PART N" only if every file for that
+// number uses the generic wrapper).
+function regroupByPartNumber(chunks: Chunk[]): void {
+  const GENERIC_RE = /^(MASTER SRS|SRS)\b/i;
+  const infoByFile = new Map<string, { partNum: number | null; title: string }>();
+  for (const c of chunks) {
+    if (infoByFile.has(c.fileName)) continue;
+    const m = c.fileName.match(/Part[_\s]?(\d+)/i);
+    infoByFile.set(c.fileName, { partNum: m ? parseInt(m[1], 10) : null, title: c.part });
+  }
+
+  const isContinued = (s: string) => /\(continued\)/i.test(s);
+  const bestTitleByNum = new Map<number, string>();
+  for (const { partNum, title } of infoByFile.values()) {
+    if (partNum == null) continue;
+    const current = bestTitleByNum.get(partNum);
+    if (!current) {
+      bestTitleByNum.set(partNum, title);
+      continue;
+    }
+    const currentGeneric = GENERIC_RE.test(current);
+    const titleGeneric = GENERIC_RE.test(title);
+    if (currentGeneric && !titleGeneric) {
+      bestTitleByNum.set(partNum, title); // any specific title beats the generic wrapper
+    } else if (!currentGeneric && !titleGeneric && isContinued(current) && !isContinued(title)) {
+      bestTitleByNum.set(partNum, title); // prefer the clean title over a "(continued)" one
+    }
+  }
+
+  const groupByFile = new Map<string, string>();
+  for (const [fileName, { partNum, title }] of infoByFile) {
+    if (partNum == null) {
+      groupByFile.set(fileName, title);
+      continue;
+    }
+    const best = bestTitleByNum.get(partNum)!;
+    groupByFile.set(fileName, GENERIC_RE.test(best) ? `PART ${partNum}` : best);
+  }
+
+  for (const c of chunks) c.partGroup = groupByFile.get(c.fileName) || c.part;
+}
+
+// Turns the grouping above into the citation-facing "part" label, adding a
+// module qualifier only when multiple files share the same group (so a
+// single-file Part keeps its plain title, unchanged from before).
+function disambiguateParts(chunks: Chunk[]): void {
+  regroupByPartNumber(chunks);
+  const filesByGroup = new Map<string, Set<string>>();
+  for (const c of chunks) {
+    if (!filesByGroup.has(c.partGroup)) filesByGroup.set(c.partGroup, new Set());
+    filesByGroup.get(c.partGroup)!.add(c.fileName);
+  }
+  for (const c of chunks) {
+    const files = filesByGroup.get(c.partGroup)!;
+    c.part =
+      files.size > 1 ? `${c.partGroup} — ${moduleFromFileName(c.fileName)}` : c.partGroup;
+  }
 }
 
 // A product's own requirement-ID prefix varies (LMS-FR, AI-FR, AIC-FR, ...),

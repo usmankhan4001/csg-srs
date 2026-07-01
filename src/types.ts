@@ -4,6 +4,7 @@ export interface TreeNode {
   type: "dir" | "file";
   children?: TreeNode[];
   title?: string;
+  label?: string;
 }
 
 export interface SearchHit {

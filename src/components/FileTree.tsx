@@ -3,7 +3,17 @@ import { NavLink } from "@mantine/core";
 import { IconFolder, IconFolderOpen, IconFileText } from "@tabler/icons-react";
 import type { TreeNode } from "../types";
 
-const prettyDir = (name: string) => name.replace(/^\d+[_-]?/, "").replace(/_/g, " ");
+// Virtual "Part N" group folders come through as the SRS's own all-caps H1
+// text (e.g. "PART 4 — FUNCTIONAL REQUIREMENTS"); title-case those so the
+// sidebar doesn't read as shouting. Real on-disk folder names (already mixed
+// case, e.g. "Layer_1_Business_Strategy") pass through untouched.
+const titleCaseIfShouty = (s: string) => {
+  const letters = s.replace(/[^A-Za-z]/g, "");
+  if (!letters || letters !== letters.toUpperCase()) return s;
+  return s.replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+};
+const prettyDir = (name: string) =>
+  titleCaseIfShouty(name.replace(/^\d+[_-]?/, "").replace(/_/g, " "));
 const prettyFile = (name: string) => name.replace(/\.md$/, "").replace(/_/g, " ");
 
 function Node({
@@ -23,7 +33,7 @@ function Node({
     return (
       <NavLink
         active={node.path === activePath}
-        label={prettyFile(node.name)}
+        label={node.label || prettyFile(node.name)}
         title={node.title}
         leftSection={<IconFileText size={15} />}
         onClick={() => node.path && onOpen(node.path)}

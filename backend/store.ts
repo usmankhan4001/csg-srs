@@ -5,6 +5,7 @@ import FlexSearch from "flexsearch";
 import {
   buildIndex,
   discoverProducts,
+  moduleFromFileName,
   INDEX_DIR,
   DATA_DIR,
   SHARED_ROOT,
@@ -192,15 +193,39 @@ export interface TreeNode {
   type: "dir" | "file";
   children?: TreeNode[];
   title?: string;
+  label?: string; // cleaned-up display name (e.g. "Lead Intake" instead of
+  // the raw "P2_Part4_Module01_Lead_Intake_v1.0.md"); falls back to name
+}
+
+// A product whose SRS is one file per numbered Part groups naturally (P1's
+// folders already do this). A product with one file per module (P2/P3) is
+// "flat" — every file sits directly in the product root — so the sidebar
+// would otherwise be one unsorted scroll of 60+ cryptically-named files.
+// Detect that case and group by the same "Part N" the AI citations use.
+function isFlatDir(dir: string): boolean {
+  if (!fs.existsSync(dir)) return false;
+  return fs
+    .readdirSync(dir, { withFileTypes: true })
+    .filter((e) => !e.name.startsWith("."))
+    .every((e) => !e.isDirectory());
+}
+
+function partNumber(label: string): number {
+  const m = label.match(/PART\s*(\d+)/i);
+  return m ? parseInt(m[1], 10) : label.toUpperCase().startsWith("APPEND") ? 900 : -1;
 }
 
 export function buildTree(product: string): TreeNode[] {
   const s = getStore();
   const pid = resolveProduct(product);
   const titleByPath = new Map<string, string>();
-  for (const c of s.chunks) if (!titleByPath.has(c.filePath)) titleByPath.set(c.filePath, c.part);
+  const groupByPath = new Map<string, string>();
+  for (const c of s.chunks) {
+    if (!titleByPath.has(c.filePath)) titleByPath.set(c.filePath, c.part);
+    if (!groupByPath.has(c.filePath)) groupByPath.set(c.filePath, c.partGroup);
+  }
 
-  function walk(dir: string, relBase: string): TreeNode[] {
+  function walk(dir: string, relBase: string, flat: boolean): TreeNode[] {
     const nodes: TreeNode[] = [];
     if (!fs.existsSync(dir)) return nodes;
     const entries = fs
@@ -213,17 +238,45 @@ export function buildTree(product: string): TreeNode[] {
     for (const e of entries) {
       const rel = relBase ? `${relBase}/${e.name}` : e.name;
       if (e.isDirectory()) {
-        const children = walk(path.join(dir, e.name), rel);
+        const children = walk(path.join(dir, e.name), rel, false);
         if (children.length) nodes.push({ name: e.name, type: "dir", children });
       } else if (e.name.toLowerCase().endsWith(".md")) {
-        nodes.push({ name: e.name, path: rel, type: "file", title: titleByPath.get(rel) || e.name });
+        nodes.push({
+          name: e.name,
+          path: rel,
+          type: "file",
+          title: titleByPath.get(rel) || e.name,
+          label: flat ? moduleFromFileName(e.name) || undefined : undefined,
+        });
       }
     }
     return nodes;
   }
 
+  function groupFlat(dir: string, relBase: string): TreeNode[] {
+    const files = walk(dir, relBase, true);
+    const groups = new Map<string, TreeNode[]>();
+    for (const f of files) {
+      const key = (f.path && groupByPath.get(f.path)) || "Other";
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(f);
+    }
+    return [...groups.entries()]
+      .sort((a, b) => {
+        const na = partNumber(a[0]);
+        const nb = partNumber(b[0]);
+        return na !== nb ? na - nb : a[0].localeCompare(b[0]);
+      })
+      .map(([name, children]) => ({ name, type: "dir" as const, children }));
+  }
+
   const roots = [pid, SHARED_ROOT].filter((r) => fs.existsSync(path.join(DATA_DIR, r)));
-  return roots.map((r) => ({ name: r, type: "dir" as const, children: walk(path.join(DATA_DIR, r), r) }));
+  return roots.map((r) => {
+    const dir = path.join(DATA_DIR, r);
+    const flat = r !== SHARED_ROOT && isFlatDir(dir);
+    const children = flat ? groupFlat(dir, r) : walk(dir, r, false);
+    return { name: r, type: "dir" as const, children };
+  });
 }
 
 // ---- File read/write ---------------------------------------------------
