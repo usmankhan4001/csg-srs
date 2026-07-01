@@ -16,6 +16,8 @@ import {
   Menu,
   Avatar,
   Indicator,
+  useMantineColorScheme,
+  useComputedColorScheme,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
@@ -32,6 +34,8 @@ import {
   IconLogout,
   IconHistory,
   IconCloudUpload,
+  IconSun,
+  IconMoon,
 } from "@tabler/icons-react";
 import { useOnline } from "./useOnline";
 import UserAuthModal from "./components/UserAuthModal";
@@ -97,6 +101,8 @@ function firstFile(nodes: TreeNode[]): string | null {
 }
 
 export default function App() {
+  const { setColorScheme } = useMantineColorScheme();
+  const computedColorScheme = useComputedColorScheme("light");
   const [products, setProducts] = useState<Product[]>([]);
   const [product, setProduct] = useState<string>("");
   const [editingEnabled, setEditingEnabled] = useState(false);
@@ -481,6 +487,16 @@ export default function App() {
               </ActionIcon>
             </Tooltip>
           )}
+
+          <Tooltip label={computedColorScheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
+            <ActionIcon
+              variant="default"
+              onClick={() => setColorScheme(computedColorScheme === "dark" ? "light" : "dark")}
+              aria-label="Toggle color scheme"
+            >
+              {computedColorScheme === "dark" ? <IconSun size={18} /> : <IconMoon size={18} />}
+            </ActionIcon>
+          </Tooltip>
 
           {user ? (
             <Menu shadow="md" width={180} position="bottom-end">

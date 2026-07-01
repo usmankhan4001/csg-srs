@@ -11,8 +11,8 @@ body,
 body {
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
     Helvetica, Arial, sans-serif;
-  color: #0f172a;
-  background: #ffffff;
+  color: var(--mantine-color-text);
+  background: var(--mantine-color-body);
 }
 
 /* ---- Markdown prose ---------------------------------------------------- */
@@ -317,4 +317,94 @@ mark.cmt-composing-highlight {
   color: #94a3b8;
   font-size: 13px;
   pointer-events: none;
+}
+
+/* ---- Dark mode overrides for content that predates the dark-mode toggle -- */
+[data-mantine-color-scheme="dark"] .prose-srs h2 {
+  border-top-color: #373a40;
+}
+[data-mantine-color-scheme="dark"] .prose-srs a {
+  color: #74a3f5;
+}
+[data-mantine-color-scheme="dark"] .prose-srs blockquote {
+  border-left-color: #4b5563;
+  color: #9ca3af;
+}
+[data-mantine-color-scheme="dark"] .prose-srs th,
+[data-mantine-color-scheme="dark"] .prose-srs td {
+  border-color: #373a40;
+}
+[data-mantine-color-scheme="dark"] .prose-srs th {
+  background: #2c2e33;
+}
+[data-mantine-color-scheme="dark"] .prose-srs :not(pre) > code {
+  background: #2c2e33;
+}
+[data-mantine-color-scheme="dark"] .prose-srs hr {
+  border-top-color: #373a40;
+}
+[data-mantine-color-scheme="dark"] .prose-srs pre.ascii-wf {
+  background: #1a1b1e;
+  color: #c1c2c5;
+  border-color: #373a40;
+}
+[data-mantine-color-scheme="dark"] .xlink {
+  background: #2b2f6b;
+  color: #b7c1ff;
+  border-color: #3f4491;
+}
+[data-mantine-color-scheme="dark"] .xlink:hover {
+  background: #3f4491;
+}
+[data-mantine-color-scheme="dark"] .xlink.soft {
+  background: #2c2e33;
+  color: #9ca3af;
+  border-color: #373a40;
+}
+[data-mantine-color-scheme="dark"] mark.cmt-highlight {
+  background: #4a3b0f;
+  border-bottom-color: #d4a017;
+}
+[data-mantine-color-scheme="dark"] mark.cmt-highlight:hover {
+  background: #5c4a13;
+}
+[data-mantine-color-scheme="dark"] .cmt-margin-icon button {
+  background: #25262b;
+  border-color: #3f4491;
+  color: #b7c1ff;
+}
+[data-mantine-color-scheme="dark"] .cmt-margin-icon button:hover {
+  background: #2b2f6b;
+}
+[data-mantine-color-scheme="dark"] .cmt-marker {
+  border-color: #373a40;
+  background: #25262b;
+  color: #9ca3af;
+}
+[data-mantine-color-scheme="dark"] .cmt-marker.has {
+  border-color: #3f4491;
+  background: #2b2f6b;
+  color: #b7c1ff;
+}
+[data-mantine-color-scheme="dark"] .cmt-marker:hover {
+  background: #2c2e33;
+}
+[data-mantine-color-scheme="dark"] .mermaid-wrap {
+  background: #1a1b1e;
+  border-color: #373a40;
+}
+[data-mantine-color-scheme="dark"] .mermaid-toolbar {
+  background: #25262b;
+  border-bottom-color: #373a40;
+}
+[data-mantine-color-scheme="dark"] .mermaid-toolbar button {
+  background: #2c2e33;
+  border-color: #373a40;
+  color: #c1c2c5;
+}
+[data-mantine-color-scheme="dark"] .mermaid-stage {
+  background:
+    linear-gradient(90deg, #232428 1px, transparent 1px) 0 0 / 22px 22px,
+    linear-gradient(#232428 1px, transparent 1px) 0 0 / 22px 22px;
+  background-color: #1a1b1e;
 }
