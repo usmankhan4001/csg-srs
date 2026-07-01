@@ -3,8 +3,10 @@
 // internal links. IDs are encoded as href="#xlink:ID"; part/section refs as
 // href="#xsearch:...". The MarkdownView's <a> override interprets these.
 
+// Generalized across products — keep in sync with backend/store.ts's ALL_ID_RE
+// and backend/indexer.ts's ID_PATTERNS.
 const ID_RE =
-  /\b(LMS-FR-\d+|LMS-NFR-\d+|LMS-TR-\d+|DEC-P1-\d+|BR-\d+|RISK-[A-Z]+-\d+|SCR-[A-Z]+-\d+|TC-[A-Z0-9]+-\d+)\b/g;
+  /\b([A-Z]{2,6}-FR-\d+|[A-Z]{2,6}-NFR-\d+|[A-Z]{2,6}-TR-\d+|[A-Z]{2,6}-UIR-\d+|DEC-[A-Z0-9]+-\d+|(?:[A-Z]{2,6}-)?BR-\d+|BR-[A-Z]{2,6}-\d+|RISK-[A-Z]+-\d+|[A-Z]{2,6}-RISK-\d+|SCR-[A-Z0-9]+-\d+|TC-[A-Z0-9]+-\d+|(?:OBJ|KPI|ASM|CON|DEP|DRV)-[A-Z]{2,6}-\d+)\b/g;
 
 // (Part 8.1) (Section 14.5) (Part 9) — captured with optional leading word.
 const REF_RE = /\b(Part|Section|Appendix)\s+([A-Z]?\d+(?:\.\d+)*)\b/g;

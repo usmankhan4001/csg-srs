@@ -83,37 +83,53 @@ function topLevelProductCandidates(dir: string): string[] {
 const prettyName = (s: string) => s.replace(/_/g, " ").trim();
 
 // ---- ID extraction patterns ---------------------------------------------
+// Generalized across products: each product prefixes its requirement/risk/
+// decision/screen IDs differently (P1: LMS-FR-001, RISK-AI-001, DEC-P1-001;
+// P2: AI-FR-001, AI-BR-014, DEC-P2-001, SCR-P2-001; P3: AIC-FR-001,
+// AIC-RISK-001, DEC-AIC-0001). These patterns key off the category keyword
+// (FR/NFR/TR/BR/RISK/SCR/TC/DEC/etc.) with a flexible product-prefix, rather
+// than hard-coding one product's exact convention, so a new product's docs
+// get working cross-links without touching this file.
 const ID_PATTERNS: Record<string, RegExp> = {
-  LMS_FR: /LMS-FR-\d+/g,
-  LMS_NFR: /LMS-NFR-\d+/g,
-  LMS_TR: /LMS-TR-\d+/g,
-  DEC: /DEC-P1-\d+/g,
-  BR: /BR-\d+/g,
-  RISK: /RISK-[A-Z]+-\d+/g,
-  SCR: /SCR-[A-Z]+-\d+/g,
+  FR: /[A-Z]{2,6}-FR-\d+/g,
+  NFR: /[A-Z]{2,6}-NFR-\d+/g,
+  TR: /[A-Z]{2,6}-TR-\d+/g,
+  UIR: /[A-Z]{2,6}-UIR-\d+/g,
+  DEC: /DEC-[A-Z0-9]+-\d+/g,
+  // bare "BR-005" (P1), prefixed "AI-BR-014" (P2), or category-first
+  // "BR-AIC-008" (P3) — one pattern, no overlap between the alternatives
+  BR: /(?:(?:[A-Z]{2,6}-)?BR-\d+|BR-[A-Z]{2,6}-\d+)/g,
+  // "RISK-AI-001" (P1, category-first) or "AIC-RISK-001" (P3, product-first)
+  RISK: /(?:RISK-[A-Z]+-\d+|[A-Z]{2,6}-RISK-\d+)/g,
+  SCR: /SCR-[A-Z0-9]+-\d+/g,
   TC: /TC-[A-Z0-9]+-\d+/g,
+  // Layer-1 strategy identifiers seen in P3 (objectives/KPIs/assumptions/
+  // constraints/dependencies/drivers), e.g. OBJ-AIC-01, KPI-AIC-05
+  REF: /(?:OBJ|KPI|ASM|CON|DEP|DRV)-[A-Z]{2,6}-\d+/g,
 };
 
 const PREFERRED_SOURCE: Record<string, string[]> = {
-  LMS_FR: ["Part_4_Functional"],
-  LMS_NFR: ["Part_10_Non"],
-  LMS_TR: ["Part_9_Tech"],
+  FR: ["Part_4_Functional", "Part4"],
+  NFR: ["Part_10_Non", "Part10"],
+  TR: ["Part_9_Tech", "Part9"],
   DEC: ["Decision_Log"],
-  BR: ["Part_3", "Part_4_Functional"],
-  RISK: ["Risk_Register", "Part_16"],
-  SCR: ["Wireframes_"],
+  BR: ["Part_3", "Part_4_Functional", "Part3", "Part4"],
+  RISK: ["Risk_Register", "Part_16", "Part16"],
+  SCR: ["Wireframes_", "Part7", "Part_7"],
   TC: ["Appendix_E"],
 };
 
 export interface ExtractedIds {
-  LMS_FR: string[];
-  LMS_NFR: string[];
-  LMS_TR: string[];
+  FR: string[];
+  NFR: string[];
+  TR: string[];
+  UIR: string[];
   DEC: string[];
   BR: string[];
   RISK: string[];
   SCR: string[];
   TC: string[];
+  REF: string[];
 }
 
 export interface Chunk {
@@ -306,23 +322,46 @@ function buildIdLookup(scope: Chunk[]): Record<string, string> {
   return lookup;
 }
 
+// Turn a filename into a readable module label when the chunk's own heading
+// doesn't carry one (P1 keeps one module per "## M01 — ..." heading; P2/P3
+// spread each module across its own file with generic sub-headings like
+// "## Requirement List", so the filename is the only thing that names it).
+function moduleFromFileName(fileName: string): string {
+  let s = fileName.replace(/\.md$/i, "").replace(/_v\d+(\.\d+)?$/i, "");
+  const stop = new Set([
+    "master", "srs", "part", "p1", "p2", "p3", "p4", "lms", "sms", "aic",
+  ]);
+  const parts = s
+    .split(/_+/)
+    .filter(Boolean)
+    .filter((p) => !stop.has(p.toLowerCase()) && !/^part\d*$/i.test(p) && !/^\d+$/.test(p));
+  return parts
+    .join(" ")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2") // TutorEngine -> Tutor Engine
+    .trim();
+}
+
+// A product's own requirement-ID prefix varies (LMS-FR, AI-FR, AIC-FR, ...),
+// so this scans ALL of the product's chunks for "| <PREFIX>-FR-### | ... |"
+// rows rather than assuming one designated "Part 4" file exists.
 function buildRequirements(
   productChunks: Chunk[],
   idLookup: Record<string, string>,
   product: string
 ): RequirementRow[] {
-  const part4 = productChunks.filter((c) => c.fileName.includes("Part_4_Functional"));
+  // Optional traceability/enrichment table (service component, screen
+  // prefix, test case) — P1 has one (Appendix D); not every product does.
+  const traceabilityChunks = productChunks.filter(
+    (c) => /traceability|appendix[_-]?d/i.test(c.fileName)
+  );
   const dMap: Record<
     string,
     { service: string; screenPrefix: string; testCaseId: string }
   > = {};
-  const dText = productChunks
-    .filter((c) => c.fileName.includes("Appendix_D_Traceability"))
-    .map((c) => c.content)
-    .join("\n");
+  const dText = traceabilityChunks.map((c) => c.content).join("\n");
   for (const line of dText.split(/\r?\n/)) {
     const m = line.match(
-      /^\|\s*(LMS-FR-\d+)\s*\|\s*([^|]+?)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|\s*(TC-[A-Z0-9]+-\d+)\s*\|/
+      /^\|\s*([A-Z]{2,6}-FR-\d+)\s*\|\s*([^|]+?)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|\s*(TC-[A-Z0-9]+-\d+)\s*\|/
     );
     if (m)
       dMap[m[1]] = {
@@ -334,11 +373,13 @@ function buildRequirements(
 
   const rows: RequirementRow[] = [];
   const seen = new Set<string>();
-  for (const chunk of part4) {
-    const module = /^M\d+/.test(chunk.heading) ? chunk.heading : "";
+  for (const chunk of productChunks) {
+    const isModuleHeading =
+      /^M\d+\b/i.test(chunk.heading) || /^Module\s*\d+/i.test(chunk.heading);
+    const module = isModuleHeading ? chunk.heading : moduleFromFileName(chunk.fileName);
     for (const line of chunk.content.split(/\r?\n/)) {
       const m = line.match(
-        /^\|\s*(LMS-FR-\d+)\s*\|\s*(.+?)\s*\|\s*(Must|Should|Could|Won't|May)\s*\|\s*([^|]*?)\s*\|/i
+        /^\|\s*([A-Z]{2,6}-FR-\d+)\s*\|\s*(.+?)\s*\|\s*(Must|Should|Could|Won't|May)\s*\|\s*([^|]*?)\s*\|/i
       );
       if (!m) continue;
       const id = m[1];

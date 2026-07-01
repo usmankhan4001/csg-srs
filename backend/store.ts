@@ -25,8 +25,10 @@ export interface Store {
 
 let store: Store | null = null;
 
+// Generalized across products — see the comment above ID_PATTERNS in
+// indexer.ts for why these are category-keyed rather than product-specific.
 const ALL_ID_RE =
-  /\b(?:LMS-FR-\d+|LMS-NFR-\d+|LMS-TR-\d+|DEC-P1-\d+|BR-\d+|RISK-[A-Z]+-\d+|SCR-[A-Z]+-\d+|TC-[A-Z0-9]+-\d+)\b/g;
+  /\b(?:[A-Z]{2,6}-FR-\d+|[A-Z]{2,6}-NFR-\d+|[A-Z]{2,6}-TR-\d+|[A-Z]{2,6}-UIR-\d+|DEC-[A-Z0-9]+-\d+|(?:[A-Z]{2,6}-)?BR-\d+|BR-[A-Z]{2,6}-\d+|RISK-[A-Z]+-\d+|[A-Z]{2,6}-RISK-\d+|SCR-[A-Z0-9]+-\d+|TC-[A-Z0-9]+-\d+|(?:OBJ|KPI|ASM|CON|DEP|DRV)-[A-Z]{2,6}-\d+)\b/g;
 
 export function extractMessageIds(text: string): string[] {
   return [...new Set(text.toUpperCase().match(ALL_ID_RE) || [])];

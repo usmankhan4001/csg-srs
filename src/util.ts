@@ -18,4 +18,5 @@ export function nodeText(children: any): string {
   return "";
 }
 
-export const SCR_RE = /^(SCR-[A-Z]+-\d+)/;
+// Allows digits in the middle segment too (e.g. P2's SCR-P2-001).
+export const SCR_RE = /^(SCR-[A-Z0-9]+-\d+)/;
