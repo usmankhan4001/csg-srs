@@ -37,12 +37,14 @@ import {
   IconCloudUpload,
   IconSun,
   IconMoon,
+  IconHelp,
 } from "@tabler/icons-react";
 import { useOnline } from "./useOnline";
 import UserAuthModal from "./components/UserAuthModal";
 import EditorPasswordModal from "./components/EditorPasswordModal";
 import CommentsDrawer from "./components/CommentsDrawer";
 import HistoryModal from "./components/HistoryModal";
+import WalkthroughModal from "./components/WalkthroughModal";
 import InstallPrompt from "./components/InstallPrompt";
 import {
   getUser,
@@ -122,6 +124,15 @@ export default function App() {
   const [saving, setSaving] = useState(false);
   const [showPromote, setShowPromote] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showWalkthrough, setShowWalkthrough] = useState(false);
+
+  // Auto-show the walkthrough once per browser, on first visit.
+  useEffect(() => {
+    if (!localStorage.getItem("srs_walkthrough_seen")) {
+      setShowWalkthrough(true);
+      localStorage.setItem("srs_walkthrough_seen", "1");
+    }
+  }, []);
 
   const isMobile = useMediaQuery("(max-width: 48em)");
   const [navOpened, { toggle: toggleNav, close: closeNav, open: openNav }] = useDisclosure(!isMobile);
@@ -508,6 +519,16 @@ export default function App() {
             </Tooltip>
           )}
 
+          <Tooltip label="How to use this app">
+            <ActionIcon
+              variant="default"
+              onClick={() => setShowWalkthrough(true)}
+              aria-label="How to use this app"
+            >
+              <IconHelp size={18} />
+            </ActionIcon>
+          </Tooltip>
+
           <Tooltip label={computedColorScheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
             <ActionIcon
               variant="default"
@@ -673,6 +694,10 @@ export default function App() {
         }}
       />
       <InstallPrompt />
+      <WalkthroughModal
+        opened={showWalkthrough}
+        onClose={() => setShowWalkthrough(false)}
+      />
     </AppShell>
   );
 }
