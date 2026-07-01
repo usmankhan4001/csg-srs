@@ -160,7 +160,7 @@ export default function ChatPanel({
           <div key={i}>
             <div
               className={`text-[10px] uppercase tracking-wide mb-1 ${
-                m.role === "user" ? "text-teal-700 dark:text-teal-400" : "text-slate-400"
+                m.role === "user" ? "text-olive-700 dark:text-olive-400" : "text-slate-400"
               }`}
             >
               {m.role === "user" ? "You" : "Assistant"}
@@ -168,7 +168,7 @@ export default function ChatPanel({
             <div
               className={`rounded-lg px-3 py-2 text-[13.5px] ${
                 m.role === "user"
-                  ? "bg-teal-50 dark:bg-teal-950 text-teal-900 dark:text-teal-100"
+                  ? "bg-olive-50 dark:bg-olive-950 text-olive-900 dark:text-olive-100"
                   : "bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100"
               }`}
             >
@@ -224,7 +224,7 @@ export default function ChatPanel({
                   <button
                     key={s.id}
                     onClick={() => onSource(s)}
-                    className="text-[10.5px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 hover:border-teal-300 rounded px-1.5 py-0.5 text-slate-600 dark:text-slate-300"
+                    className="text-[10.5px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 hover:border-olive-300 rounded px-1.5 py-0.5 text-slate-600 dark:text-slate-300"
                     title={`${s.part} — ${s.heading}`}
                   >
                     {s.heading.length > 36
@@ -257,12 +257,12 @@ export default function ChatPanel({
           rows={2}
           disabled={!online}
           placeholder={online ? "Ask about the SRS…" : "Unavailable offline"}
-          className="w-full resize-none text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-300 disabled:bg-slate-50 dark:disabled:bg-slate-900"
+          className="w-full resize-none text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-olive-300 disabled:bg-slate-50 dark:disabled:bg-slate-900"
         />
         <button
           onClick={sendMessage}
           disabled={busy || !online}
-          className="mt-1 w-full bg-teal-700 text-white text-sm rounded-md py-1.5 disabled:opacity-50 hover:bg-teal-800"
+          className="mt-1 w-full bg-olive-700 text-white text-sm rounded-md py-1.5 disabled:opacity-50 hover:bg-olive-800"
         >
           {busy ? "Thinking…" : "Send"}
         </button>

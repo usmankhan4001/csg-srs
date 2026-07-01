@@ -83,7 +83,7 @@ export default function InstallPrompt() {
           size="sm"
           center
           icon={
-            <ThemeIcon color="teal" size={18} radius="xl">
+            <ThemeIcon color="olive" size={18} radius="xl">
               <IconCheck size={12} />
             </ThemeIcon>
           }

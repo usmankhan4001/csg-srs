@@ -18,35 +18,24 @@ registerSW({ immediate: true });
 const FONT =
   'Outfit, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 
-// A restrained slate + muted-teal pairing instead of the stock indigo/violet
-// "AI product" palette — cooler, lower-saturation, meant to read as an
-// editorial documentation tool rather than a chatbot skin.
+// A muted olive-green brand color instead of the stock indigo/violet "AI
+// product" palette — earthy, lower-saturation, meant to read as an editorial
+// documentation tool rather than a chatbot skin. Keep this in sync with the
+// "olive" Tailwind color (tailwind.config.js) and public/icon.svg.
 const theme = createTheme({
-  primaryColor: "slate",
+  primaryColor: "olive",
   colors: {
-    slate: [
-      "#f4f6f8",
-      "#e6eaee",
-      "#ccd3db",
-      "#aab6c3",
-      "#8695a8",
-      "#66768c",
-      "#4f5e74",
-      "#3d4a5c",
-      "#2d3745",
-      "#1c232d",
-    ],
-    teal: [
-      "#eef6f5",
-      "#d3e9e6",
-      "#a8d3cc",
-      "#79bcb1",
-      "#54a89a",
-      "#3c9384",
-      "#2f7e70", // accent shade (links, active chips)
-      "#25655a",
-      "#1c4d45",
-      "#123531",
+    olive: [
+      "#f6f7ec",
+      "#e9edd2",
+      "#d2d9a3",
+      "#b7c374",
+      "#9dac52",
+      "#87953d",
+      "#6b7a30", // primary interactive shade (light mode)
+      "#556025",
+      "#40481c",
+      "#2b3013",
     ],
   },
   primaryShade: { light: 6, dark: 4 },

@@ -131,7 +131,7 @@ export default function HistoryModal({
                         {h.author}
                       </Text>
                       {i === 0 && (
-                        <Badge size="xs" color="teal" variant="light">
+                        <Badge size="xs" color="olive" variant="light">
                           current
                         </Badge>
                       )}

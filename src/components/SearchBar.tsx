@@ -72,7 +72,7 @@ export default function SearchBar({
     >
       <Group gap="xs" wrap="nowrap">
         {idBadge && (
-          <Badge size="xs" color="teal">
+          <Badge size="xs" color="olive">
             ID
           </Badge>
         )}

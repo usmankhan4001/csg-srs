@@ -184,7 +184,7 @@ export default function App() {
       syncQueue().then((n) => {
         setPending(pendingCount());
         if (n > 0) {
-          notifications.show({ color: "teal", message: `Synced ${n} offline comment(s)` });
+          notifications.show({ color: "olive", message: `Synced ${n} offline comment(s)` });
           refreshComments();
         }
       });
@@ -201,7 +201,7 @@ export default function App() {
       if (!path) return;
       await addComment({ product, filePath: path, ...p });
       refreshComments();
-      notifications.show({ color: "teal", message: "Comment added" });
+      notifications.show({ color: "olive", message: "Comment added" });
     },
     [path, product, refreshComments]
   );
@@ -398,7 +398,7 @@ export default function App() {
         setLock(res.lock || null);
       });
       notifications.show({
-        color: "teal",
+        color: "olive",
         message: r.committed ? `Saved · committed ${r.committed}` : "Saved",
       });
     } catch (e: any) {
@@ -435,7 +435,7 @@ export default function App() {
           <Burger opened={navOpened} onClick={toggleNav} hiddenFrom="sm" size="sm" />
           <Title order={5} style={{ whiteSpace: "nowrap" }}>
             SRS{" "}
-            <Text span c="teal.6" inherit>
+            <Text span c="olive.6" inherit>
               Knowledge Base
             </Text>
           </Title>
@@ -538,7 +538,7 @@ export default function App() {
               disabled={fileComments.length === 0}
               label={fileComments.length}
               size={16}
-              color="teal"
+              color="olive"
             >
               <ActionIcon
                 variant={commentsOpen ? "filled" : "default"}
@@ -590,7 +590,7 @@ export default function App() {
             <Menu shadow="md" width={180} position="bottom-end">
               <Menu.Target>
                 <Tooltip label={user.displayName}>
-                  <Avatar color="teal" radius="xl" size={30} style={{ cursor: "pointer" }}>
+                  <Avatar color="olive" radius="xl" size={30} style={{ cursor: "pointer" }}>
                     {user.displayName.split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase()}
                   </Avatar>
                 </Tooltip>
@@ -737,7 +737,7 @@ export default function App() {
               setHistory(res.history || []);
               setLock(res.lock || null);
             });
-          notifications.show({ color: "teal", message: "Restored earlier version" });
+          notifications.show({ color: "olive", message: "Restored earlier version" });
         }}
       />
       <InstallPrompt />

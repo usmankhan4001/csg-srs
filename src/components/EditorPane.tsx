@@ -63,7 +63,7 @@ export default function EditorPane({
         <button
           onClick={() => onSave(text)}
           disabled={!dirty || saving}
-          className="text-xs bg-teal-700 text-white px-3 py-1 rounded disabled:opacity-50 hover:bg-teal-800"
+          className="text-xs bg-olive-700 text-white px-3 py-1 rounded disabled:opacity-50 hover:bg-olive-800"
         >
           {saving ? "Saving…" : "Save (⌘/Ctrl+S)"}
         </button>

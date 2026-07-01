@@ -13,7 +13,7 @@ export default defineConfig({
         short_name: "SRS KB",
         description:
           "Searchable SRS knowledge base + AI assistant (offline-capable).",
-        theme_color: "#4c6ef5",
+        theme_color: "#556025",
         background_color: "#ffffff",
         display: "standalone",
         start_url: "/",
