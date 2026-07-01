@@ -12,19 +12,20 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 
-# App source + SRS content
+# App source + SRS content (this is the seed content; if DATA_DIR points at a
+# separate persistent volume at runtime, it's copied there once on first boot)
 COPY . .
 
-# Build the frontend into dist/ (the server serves it in production)
-RUN npm run build \
-    && npm run index
+# Build the frontend into dist/ (the server serves it in production).
+# The index is NOT built here: INDEX_DIR lives under DATA_DIR, which only
+# resolves to a real path at runtime (once DATA_DIR is known), so the server
+# builds it on first boot instead. See backend/indexer.ts + server.ts.
+RUN npm run build
 
-# Make sure the content dir is a git repo so edit auto-commits work even on a
-# fresh volume (a real repo with history can be mounted over this).
+# Git identity for auto-commits; ensureGitRepo() (backend/git.ts) initializes
+# the actual content repo under DATA_DIR at runtime, not here.
 RUN git config --global user.email "srs-app@local" \
-    && git config --global user.name "SRS App" \
-    && git config --global --add safe.directory /app \
-    && (git rev-parse --is-inside-work-tree >/dev/null 2>&1 || (git init -q && git add -A && git commit -q -m "seed" || true))
+    && git config --global user.name "SRS App"
 
 ENV NODE_ENV=production
 ENV BACKEND_PORT=8787

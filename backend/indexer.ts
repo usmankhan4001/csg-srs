@@ -6,7 +6,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const ROOT = path.resolve(__dirname, "..");
 export const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : ROOT;
 
-export const INDEX_DIR = path.join(ROOT, "index");
+// Lives under DATA_DIR (not ROOT) so a rebuilt index survives container
+// restarts on a persistent volume — if it lived under ROOT, every redeploy
+// would silently revert to whatever was baked into the image at build time,
+// discarding the index state from any edits made since.
+export const INDEX_DIR = path.join(DATA_DIR, "index");
 export const WIREFRAME_DIR = path.join(ROOT, "docs", "wireframes");
 
 // The shared folder is available to every product.
@@ -58,7 +62,7 @@ export function ensureDataDir(): void {
   if (!fs.existsSync(path.join(DATA_DIR, ".gitignore"))) {
     fs.writeFileSync(
       path.join(DATA_DIR, ".gitignore"),
-      "comments/\nusers.json\nlocks.json\n"
+      "comments/\nusers.json\nlocks.json\nindex/\n"
     );
   }
 }
