@@ -6,7 +6,7 @@ import {
   buildIndex,
   discoverProducts,
   INDEX_DIR,
-  ROOT,
+  DATA_DIR,
   SHARED_ROOT,
   type Chunk,
   type RequirementRow,
@@ -220,8 +220,8 @@ export function buildTree(product: string): TreeNode[] {
     return nodes;
   }
 
-  const roots = [pid, SHARED_ROOT].filter((r) => fs.existsSync(path.join(ROOT, r)));
-  return roots.map((r) => ({ name: r, type: "dir" as const, children: walk(path.join(ROOT, r), r) }));
+  const roots = [pid, SHARED_ROOT].filter((r) => fs.existsSync(path.join(DATA_DIR, r)));
+  return roots.map((r) => ({ name: r, type: "dir" as const, children: walk(path.join(DATA_DIR, r), r) }));
 }
 
 // ---- File read/write ---------------------------------------------------
@@ -232,12 +232,18 @@ const validDocRoots = (): string[] => [
 
 function safeDocPath(relPath: string): string | null {
   const normalized = relPath.split("\\").join("/");
-  const abs = path.resolve(ROOT, normalized);
-  if (!abs.startsWith(ROOT)) return null;
+  const abs = path.resolve(DATA_DIR, normalized);
+  if (!abs.startsWith(DATA_DIR)) return null;
   const top = normalized.split("/")[0];
   if (!validDocRoots().includes(top)) return null;
   if (!abs.toLowerCase().endsWith(".md")) return null;
   return abs;
+}
+
+// Relative path (posix, matching filePath in chunks/comments/locks) for an
+// absolute path inside DATA_DIR.
+export function toRelPath(absPath: string): string {
+  return path.relative(DATA_DIR, absPath).split(path.sep).join("/");
 }
 
 export function readDocFile(relPath: string): string | null {

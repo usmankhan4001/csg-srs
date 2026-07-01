@@ -1,12 +1,8 @@
 import crypto from "node:crypto";
 import type { Request, Response, NextFunction } from "express";
+import { verifyUserToken, type Identity } from "./users.ts";
 
-const SECRET = process.env.AUTH_SECRET || "dev-secret-change-me";
 const EDIT_PASSWORD = process.env.EDIT_PASSWORD || "";
-const TTL_MS = 8 * 60 * 60 * 1000; // 8 hours
-
-const sign = (payload: string) =>
-  crypto.createHmac("sha256", SECRET).update(payload).digest("base64url");
 
 export function editingEnabled(): boolean {
   return EDIT_PASSWORD.length > 0;
@@ -19,32 +15,34 @@ export function checkPassword(pw: string): boolean {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-export function issueToken(): string {
-  const payload = JSON.stringify({ exp: Date.now() + TTL_MS });
-  const b64 = Buffer.from(payload).toString("base64url");
-  return `${b64}.${sign(b64)}`;
+function bearer(req: Request): string {
+  const h = req.headers.authorization || "";
+  return h.startsWith("Bearer ") ? h.slice(7) : "";
 }
 
-export function verifyToken(token?: string): boolean {
-  if (!token) return false;
-  const [b64, sig] = token.split(".");
-  if (!b64 || !sig) return false;
-  if (sign(b64) !== sig) return false;
-  try {
-    const { exp } = JSON.parse(Buffer.from(b64, "base64url").toString());
-    return typeof exp === "number" && exp > Date.now();
-  } catch {
-    return false;
-  }
+// Resolve the signed-in editor identity for a request, or null.
+export function getEditor(req: Request): Identity | null {
+  const id = verifyUserToken(bearer(req));
+  if (!id || id.role !== "editor") return null;
+  return id;
 }
 
-// Express middleware: require a valid editor token for write operations.
+// Express middleware: require the caller to be signed in AND promoted to
+// editor (see /api/users/promote). Editing is attributed to their real
+// account, not a shared password — that's what makes locking + git commit
+// attribution meaningful.
 export function requireEditor(req: Request, res: Response, next: NextFunction) {
   if (!editingEnabled())
     return res.status(403).json({ error: "Editing is disabled (no EDIT_PASSWORD set)." });
-  const header = req.headers.authorization || "";
-  const token = header.startsWith("Bearer ") ? header.slice(7) : "";
-  if (!verifyToken(token))
-    return res.status(401).json({ error: "Not authorized — log in to edit." });
+  const id = getEditor(req);
+  if (!id) {
+    const signedIn = !!verifyUserToken(bearer(req));
+    return res.status(401).json({
+      error: signedIn
+        ? "Your account isn't an editor yet — unlock editing first."
+        : "Sign in to edit.",
+    });
+  }
+  (req as any).editor = id;
   next();
 }

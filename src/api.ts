@@ -57,15 +57,20 @@ export async function fetchTree(product: string): Promise<TreeNode[]> {
 export async function fetchFile(path: string): Promise<FileResponse> {
   const content = getFile(path);
   if (content == null) throw new Error(`Could not load ${path}`);
-  // history is an online-only nicety; ignore failures (e.g. offline)
+  // history + lock status are online-only niceties; ignore failures (offline)
   let history: FileResponse["history"] = [];
+  let lock: FileResponse["lock"] = null;
   try {
     const r = await fetch(`/api/file?path=${encodeURIComponent(path)}`);
-    if (r.ok) history = (await r.json()).history || [];
+    if (r.ok) {
+      const j = await r.json();
+      history = j.history || [];
+      lock = j.lock || null;
+    }
   } catch {
-    /* offline — no history */
+    /* offline — no history/lock info */
   }
-  return { path, content, history };
+  return { path, content, history, lock };
 }
 
 export async function search(q: string, product: string): Promise<SearchHit[]> {
@@ -93,18 +98,41 @@ export async function fetchWireframeImages(): Promise<Set<string>> {
   }
 }
 
-// ---- Auth + editing ----------------------------------------------------
-export async function login(password: string): Promise<string> {
-  const r = await fetch("/api/auth", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ password }),
+// ---- Editing (attributed to the signed-in user; see commentsClient.ts) ---
+async function authedJSON(url: string, method: string, token: string, body?: unknown) {
+  const r = await fetch(url, {
+    method,
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
   });
-  if (!r.ok) {
-    const { error } = await r.json().catch(() => ({ error: "Login failed" }));
-    throw new Error(error || "Login failed");
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || `${method} ${url} failed`);
+  return data;
+}
+
+export interface LockResult {
+  ok: boolean;
+  lock?: { username: string; displayName: string; acquiredAt: number; expiresAt: number } | null;
+  error?: string;
+}
+
+export async function lockFile(path: string, token: string): Promise<LockResult> {
+  const r = await fetch("/api/file/lock", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ path }),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) return { ok: false, error: data.error, lock: data.lock || null };
+  return { ok: true, lock: data.lock };
+}
+
+export async function unlockFile(path: string, token: string): Promise<void> {
+  try {
+    await authedJSON("/api/file/unlock", "POST", token, { path });
+  } catch {
+    /* best-effort */
   }
-  return (await r.json()).token;
 }
 
 export async function saveFile(
@@ -112,18 +140,26 @@ export async function saveFile(
   content: string,
   token: string
 ): Promise<{ ok: boolean; committed: string | null }> {
-  const r = await fetch("/api/file", {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ path, content }),
-  });
-  if (!r.ok) {
-    const { error } = await r.json().catch(() => ({ error: "Save failed" }));
-    throw new Error(error || "Save failed");
-  }
+  const data = await authedJSON("/api/file", "PUT", token, { path, content });
   invalidateBundles(); // edited content changed on the server
-  return r.json();
+  return data;
+}
+
+export async function fetchVersion(path: string, hash: string): Promise<string> {
+  const r = await fetch(
+    `/api/file/version?path=${encodeURIComponent(path)}&hash=${encodeURIComponent(hash)}`
+  );
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || "Could not load version");
+  return data.content;
+}
+
+export async function restoreVersion(
+  path: string,
+  hash: string,
+  token: string
+): Promise<{ ok: boolean; committed: string | null; content: string }> {
+  const data = await authedJSON("/api/file/restore", "POST", token, { path, hash });
+  invalidateBundles();
+  return data;
 }

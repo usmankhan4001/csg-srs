@@ -20,35 +20,50 @@ export interface CurrentUser {
   token: string;
   username: string;
   displayName: string;
+  role?: "editor";
 }
 
 const LS = {
   token: "srs_user_token",
-  name: "srs_user_name",
-  uname: "srs_user_username",
   queue: "srs_comment_queue",
   cache: (fp: string) => `srs_comments_cache:${fp}`,
 };
+
+// The token is a signed "<payload>.<sig>" pair; decode the payload (no
+// signature check needed client-side — it's just for display, the server
+// re-verifies on every request) so role/name always reflect the latest token.
+function decodeToken(token: string): Omit<CurrentUser, "token"> | null {
+  try {
+    const [b64] = token.split(".");
+    let std = b64.replace(/-/g, "+").replace(/_/g, "/");
+    while (std.length % 4) std += "="; // atob is strict about padding
+    const p = JSON.parse(atob(std));
+    if (typeof p.exp === "number" && p.exp < Date.now()) return null;
+    return { username: p.username, displayName: p.displayName, role: p.role };
+  } catch {
+    return null;
+  }
+}
 
 // ---- user ----
 export function getUser(): CurrentUser | null {
   const token = localStorage.getItem(LS.token);
   if (!token) return null;
-  return {
-    token,
-    username: localStorage.getItem(LS.uname) || "",
-    displayName: localStorage.getItem(LS.name) || "",
-  };
+  const id = decodeToken(token);
+  if (!id) {
+    localStorage.removeItem(LS.token); // expired/corrupt
+    return null;
+  }
+  return { token, ...id };
 }
-function setUser(token: string, username: string, displayName: string) {
+export function isEditor(): boolean {
+  return getUser()?.role === "editor";
+}
+function setToken(token: string) {
   localStorage.setItem(LS.token, token);
-  localStorage.setItem(LS.uname, username);
-  localStorage.setItem(LS.name, displayName);
 }
 export function logout() {
   localStorage.removeItem(LS.token);
-  localStorage.removeItem(LS.uname);
-  localStorage.removeItem(LS.name);
 }
 
 export async function register(username: string, displayName: string, password: string) {
@@ -59,7 +74,7 @@ export async function register(username: string, displayName: string, password: 
   });
   const data = await r.json();
   if (!r.ok) throw new Error(data.error || "Registration failed");
-  setUser(data.token, username.trim().toLowerCase(), data.displayName);
+  setToken(data.token);
 }
 
 export async function login(username: string, password: string) {
@@ -70,7 +85,22 @@ export async function login(username: string, password: string) {
   });
   const data = await r.json();
   if (!r.ok) throw new Error(data.error || "Login failed");
-  setUser(data.token, username.trim().toLowerCase(), data.displayName);
+  setToken(data.token);
+}
+
+// Elevate the signed-in user to editor by entering the shared EDIT_PASSWORD
+// once; stores the freshly re-issued token (role=editor baked in).
+export async function promote(password: string): Promise<void> {
+  const user = getUser();
+  if (!user) throw new Error("Sign in first.");
+  const r = await fetch("/api/users/promote", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${user.token}` },
+    body: JSON.stringify({ password }),
+  });
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error || "Incorrect password");
+  setToken(data.token);
 }
 
 // ---- queue ----

@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { Modal, PasswordInput, Button, Group, Text } from "@mantine/core";
 
-export default function LoginModal({
+// Shown to a signed-in user who wants to unlock editing for their account.
+// Enter the shared EDIT_PASSWORD once — after that, editing is tied to their
+// real identity (locking + git commit attribution use their account).
+export default function EditorPasswordModal({
   opened,
   onSubmit,
   onClose,
@@ -21,7 +24,7 @@ export default function LoginModal({
       await onSubmit(pw);
       setPw("");
     } catch (e: any) {
-      setErr(e?.message || "Login failed");
+      setErr(e?.message || "Incorrect password");
     } finally {
       setBusy(false);
     }
@@ -30,14 +33,15 @@ export default function LoginModal({
   return (
     <Modal opened={opened} onClose={onClose} title="Unlock editing" centered size="sm">
       <Text size="xs" c="dimmed" mb="sm">
-        Enter the editor password to modify documents.
+        Enter the editor password to enable editing for your account. Edits and
+        version history will be attributed to you from now on.
       </Text>
       <PasswordInput
         data-autofocus
         value={pw}
         onChange={(e) => setPw(e.currentTarget.value)}
         onKeyDown={(e) => e.key === "Enter" && submit()}
-        placeholder="Password"
+        placeholder="Editor password"
         error={err}
       />
       <Group justify="flex-end" mt="md">

@@ -24,17 +24,60 @@ export interface Product {
 }
 
 // A product is any top-level dir (not in the denylist, not dotfile) that
-// contains at least one .md file somewhere inside it.
+// contains at least one .md file somewhere inside it. Products live under
+// DATA_DIR (the persistent content root), not ROOT (the app code checkout).
 export function discoverProducts(): Product[] {
   const out: Product[] = [];
-  for (const entry of fs.readdirSync(ROOT, { withFileTypes: true })) {
+  for (const entry of fs.readdirSync(DATA_DIR, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
     if (entry.name.startsWith(".") || NON_PRODUCT.has(entry.name)) continue;
-    if (walk(path.join(ROOT, entry.name)).length === 0) continue;
+    if (walk(path.join(DATA_DIR, entry.name)).length === 0) continue;
     out.push({ id: entry.name, name: prettyName(entry.name) });
   }
   out.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
   return out;
+}
+
+// When DATA_DIR is a separate persistent volume (production), seed it once
+// from the content baked into the ROOT checkout, and make sure it's its own
+// git repo so file history/versioning is tracked where the content actually
+// lives. No-op (and safe to call repeatedly) once DATA_DIR is populated.
+export function ensureDataDir(): void {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  if (DATA_DIR === ROOT) return; // local dev / simple deploys: nothing to seed
+
+  const candidates = [SHARED_ROOT, ...topLevelProductCandidates(ROOT)];
+  for (const name of candidates) {
+    const src = path.join(ROOT, name);
+    const dest = path.join(DATA_DIR, name);
+    if (fs.existsSync(src) && !fs.existsSync(dest)) {
+      fs.cpSync(src, dest, { recursive: true });
+    }
+  }
+
+  if (!fs.existsSync(path.join(DATA_DIR, ".gitignore"))) {
+    fs.writeFileSync(
+      path.join(DATA_DIR, ".gitignore"),
+      "comments/\nusers.json\nlocks.json\n"
+    );
+  }
+}
+
+// Same rule as discoverProducts(): a real product dir has an .md file in it
+// somewhere. This keeps runtime/scratch dirs (comments/, stray html, etc.)
+// out of the seed step.
+function topLevelProductCandidates(dir: string): string[] {
+  if (!fs.existsSync(dir)) return [];
+  return fs
+    .readdirSync(dir, { withFileTypes: true })
+    .filter(
+      (e) =>
+        e.isDirectory() &&
+        !e.name.startsWith(".") &&
+        !NON_PRODUCT.has(e.name) &&
+        walk(path.join(dir, e.name)).length > 0
+    )
+    .map((e) => e.name);
 }
 
 const prettyName = (s: string) => s.replace(/_/g, " ").trim();
@@ -147,7 +190,7 @@ function stripMermaid(text: string): { clean: string; count: number } {
 
 function chunkFile(filePath: string, product: string): Chunk[] {
   const raw = fs.readFileSync(filePath, "utf8");
-  const relPath = path.relative(ROOT, filePath).split(path.sep).join("/");
+  const relPath = path.relative(DATA_DIR, filePath).split(path.sep).join("/");
   const fileName = path.basename(filePath);
   const layer = relPath.split("/")[1] || relPath.split("/")[0];
   const h1Match = raw.match(/^#\s+(.+)$/m);
@@ -193,8 +236,9 @@ function chunkFile(filePath: string, product: string): Chunk[] {
 }
 
 export function buildIndex() {
+  ensureDataDir();
   const products = discoverProducts();
-  const sharedFiles = walk(path.join(ROOT, SHARED_ROOT));
+  const sharedFiles = walk(path.join(DATA_DIR, SHARED_ROOT));
 
   const chunks: Chunk[] = [];
   // shared chunks (tagged _Shared) are included in every product
@@ -205,7 +249,7 @@ export function buildIndex() {
 
   const perProductChunks: Record<string, Chunk[]> = {};
   for (const p of products) {
-    const files = walk(path.join(ROOT, p.id)).sort();
+    const files = walk(path.join(DATA_DIR, p.id)).sort();
     const pc: Chunk[] = [];
     for (const f of files) pc.push(...chunkFile(f, p.id));
     perProductChunks[p.id] = pc;

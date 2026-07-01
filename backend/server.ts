@@ -4,7 +4,7 @@ import cors from "cors";
 import fs from "node:fs";
 import path from "node:path";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { ROOT } from "./indexer.ts";
+import { ROOT, ensureDataDir } from "./indexer.ts";
 import {
   getStore,
   reindex,
@@ -17,14 +17,10 @@ import {
   getBundle,
 } from "./store.ts";
 import { WIREFRAME_DIR } from "./indexer.ts";
-import {
-  checkPassword,
-  issueToken,
-  editingEnabled,
-  requireEditor,
-} from "./auth.ts";
-import { commitFile, isGitRepo, fileHistory } from "./git.ts";
-import { registerUser, loginUser, verifyUserToken } from "./users.ts";
+import { editingEnabled, requireEditor, getEditor } from "./auth.ts";
+import { commitFile, isGitRepo, fileHistory, fileAtCommit, ensureGitRepo } from "./git.ts";
+import { registerUser, loginUser, verifyUserToken, promoteToEditor } from "./users.ts";
+import { getLock, acquireLock, checkLockOwnership, releaseLock } from "./locks.ts";
 import {
   listComments,
   addComment,
@@ -42,6 +38,10 @@ const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-pro";
 const GEMINI_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "";
 const GIT_AUTOCOMMIT = (process.env.GIT_AUTOCOMMIT || "true") !== "false";
 
+// Seed the persistent content dir (if separate from the app checkout) and
+// make sure it's version-controlled before anything reads/writes into it.
+ensureDataDir();
+await ensureGitRepo();
 getStore(); // warm the index
 
 app.use("/wireframes", express.static(WIREFRAME_DIR));
@@ -75,7 +75,7 @@ app.get("/api/file", async (req, res) => {
   const p = String(req.query.path || "");
   const md = readDocFile(p);
   if (md == null) return res.status(404).json({ error: "Not found" });
-  res.json({ path: p, content: md, history: await fileHistory(p, 12) });
+  res.json({ path: p, content: md, history: await fileHistory(p, 12), lock: getLock(p) });
 });
 
 app.get("/api/search", (req, res) => {
@@ -124,17 +124,12 @@ app.get("/api/wireframes", (_req, res) => {
   res.json({ images });
 });
 
-// ---- Auth --------------------------------------------------------------
-app.post("/api/auth", (req, res) => {
-  if (!editingEnabled())
-    return res.status(403).json({ error: "Editing is disabled on this server." });
-  const { password } = req.body as { password?: string };
-  if (!checkPassword(String(password || "")))
-    return res.status(401).json({ error: "Incorrect password." });
-  res.json({ token: issueToken() });
-});
-
 // ---- Users (open self-registration) -----------------------------------
+function bearer(req: any): string {
+  const h = req.headers.authorization || "";
+  return h.startsWith("Bearer ") ? h.slice(7) : "";
+}
+
 app.post("/api/users/register", (req, res) => {
   const { username, displayName, password } = req.body || {};
   const r = registerUser(username, displayName, password);
@@ -146,19 +141,24 @@ app.post("/api/users/login", (req, res) => {
   const { username, password } = req.body || {};
   const r = loginUser(username, password);
   if (!r.ok) return res.status(401).json({ error: r.error });
-  res.json({ token: r.token, displayName: r.displayName });
+  res.json({ token: r.token, displayName: r.displayName, role: r.role });
 });
 
 app.get("/api/users/me", (req, res) => {
   const id = verifyUserToken(bearer(req));
-  res.json({ user: id });
+  res.json({ user: id, editingEnabled: editingEnabled() });
 });
 
-// ---- Comments (read open; write requires a user) ----------------------
-function bearer(req: any): string {
-  const h = req.headers.authorization || "";
-  return h.startsWith("Bearer ") ? h.slice(7) : "";
-}
+// Elevate the signed-in user to editor by entering the shared EDIT_PASSWORD
+// once. Re-issues their token with role=editor baked in.
+app.post("/api/users/promote", (req, res) => {
+  const id = verifyUserToken(bearer(req));
+  if (!id) return res.status(401).json({ error: "Sign in first." });
+  const { password } = req.body || {};
+  const r = promoteToEditor(id.username, String(password || ""));
+  if (!r.ok) return res.status(401).json({ error: r.error });
+  res.json({ token: r.token });
+});
 
 app.get("/api/comments", (req, res) => {
   const p = String(req.query.path || "");
@@ -206,10 +206,34 @@ app.delete("/api/comments", (req, res) => {
 });
 
 // ---- Editing (protected) ----------------------------------------------
+
+// Acquire/renew the edit lock on a file. Called when the editor opens, and
+// on a heartbeat interval while it stays open.
+app.post("/api/file/lock", requireEditor, (req, res) => {
+  const editor = getEditor(req)!;
+  const { path: relPath } = req.body || {};
+  if (!relPath) return res.status(400).json({ error: "path required" });
+  const r = acquireLock(String(relPath), editor);
+  if (!r.ok) return res.status(409).json({ error: r.error, lock: r.lock });
+  res.json({ ok: true, lock: r.lock });
+});
+
+app.post("/api/file/unlock", requireEditor, (req, res) => {
+  const editor = getEditor(req)!;
+  const { path: relPath } = req.body || {};
+  if (relPath) releaseLock(String(relPath), editor.username);
+  res.json({ ok: true });
+});
+
 app.put("/api/file", requireEditor, async (req, res) => {
   const { path: relPath, content } = req.body as { path?: string; content?: string };
   if (!relPath || typeof content !== "string")
     return res.status(400).json({ error: "path and content required" });
+
+  const editor = getEditor(req)!; // requireEditor already validated this
+  const lockErr = checkLockOwnership(relPath, editor.username);
+  if (lockErr) return res.status(409).json({ error: lockErr });
+
   const result = writeDocFile(relPath, content);
   if (!result.ok) return res.status(400).json({ error: result.error });
 
@@ -217,9 +241,54 @@ app.put("/api/file", requireEditor, async (req, res) => {
 
   let commit: string | null = null;
   if (GIT_AUTOCOMMIT && (await isGitRepo())) {
-    commit = await commitFile(relPath, `docs: edit ${relPath}`);
+    commit = await commitFile(relPath, `docs: edit ${relPath}`, {
+      name: editor.displayName,
+      username: editor.username,
+    });
   }
+  acquireLock(relPath, editor); // renew — they may keep editing after saving
   res.json({ ok: true, committed: commit });
+});
+
+// Read-only preview of a file's content at a past commit.
+app.get("/api/file/version", async (req, res) => {
+  const relPath = String(req.query.path || "");
+  const hash = String(req.query.hash || "");
+  if (!relPath || !hash) return res.status(400).json({ error: "path and hash required" });
+  const content = await fileAtCommit(relPath, hash);
+  if (content == null) return res.status(404).json({ error: "Version not found" });
+  res.json({ path: relPath, hash, content });
+});
+
+// Restore a file to an earlier version. Goes through the same lock check and
+// writeDocFile()/commitFile() path as a normal save — it's just a save whose
+// new content happens to come from git history — so it plays nicely with
+// locking, reindexing, and attribution.
+app.post("/api/file/restore", requireEditor, async (req, res) => {
+  const { path: relPath, hash } = req.body as { path?: string; hash?: string };
+  if (!relPath || !hash) return res.status(400).json({ error: "path and hash required" });
+
+  const editor = getEditor(req)!;
+  const lockErr = checkLockOwnership(relPath, editor.username);
+  if (lockErr) return res.status(409).json({ error: lockErr });
+
+  const content = await fileAtCommit(relPath, hash);
+  if (content == null) return res.status(404).json({ error: "Version not found" });
+
+  const result = writeDocFile(relPath, content);
+  if (!result.ok) return res.status(400).json({ error: result.error });
+
+  reindex();
+
+  let commit: string | null = null;
+  if (GIT_AUTOCOMMIT && (await isGitRepo())) {
+    commit = await commitFile(relPath, `docs: restore ${relPath} to ${hash}`, {
+      name: editor.displayName,
+      username: editor.username,
+    });
+  }
+  acquireLock(relPath, editor);
+  res.json({ ok: true, committed: commit, content });
 });
 
 app.post("/api/reindex", requireEditor, (_req, res) => {

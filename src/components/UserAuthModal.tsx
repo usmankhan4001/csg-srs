@@ -6,10 +6,12 @@ export default function UserAuthModal({
   opened,
   onClose,
   onAuthed,
+  title = "Sign in to comment",
 }: {
   opened: boolean;
   onClose: () => void;
   onAuthed: () => void;
+  title?: string;
 }) {
   const [tab, setTab] = useState<string | null>("login");
   const [username, setUsername] = useState("");
@@ -35,7 +37,7 @@ export default function UserAuthModal({
   };
 
   return (
-    <Modal opened={opened} onClose={onClose} title="Sign in to comment" centered size="sm">
+    <Modal opened={opened} onClose={onClose} title={title} centered size="sm">
       <Tabs value={tab} onChange={setTab}>
         <Tabs.List grow>
           <Tabs.Tab value="login">Sign in</Tabs.Tab>

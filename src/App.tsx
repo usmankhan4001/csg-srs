@@ -30,14 +30,18 @@ import {
   IconMessageCircle,
   IconUser,
   IconLogout,
+  IconHistory,
 } from "@tabler/icons-react";
 import { useOnline } from "./useOnline";
 import UserAuthModal from "./components/UserAuthModal";
+import EditorPasswordModal from "./components/EditorPasswordModal";
 import CommentsDrawer from "./components/CommentsDrawer";
+import HistoryModal from "./components/HistoryModal";
 import InstallPrompt from "./components/InstallPrompt";
 import {
   getUser,
   logout,
+  promote,
   syncQueue,
   fetchComments,
   addComment,
@@ -47,7 +51,6 @@ import {
 import FileTree from "./components/FileTree";
 import MarkdownView from "./components/MarkdownView";
 import EditorPane from "./components/EditorPane";
-import LoginModal from "./components/LoginModal";
 import ChatPanel from "./components/ChatPanel";
 import SearchBar from "./components/SearchBar";
 import RequirementExplorer from "./components/RequirementExplorer";
@@ -58,7 +61,8 @@ import {
   lookupId,
   search,
   saveFile,
-  login,
+  lockFile,
+  unlockFile,
   fetchWireframeImages,
 } from "./api";
 import type {
@@ -68,10 +72,10 @@ import type {
   SearchHit,
   Product,
   FileCommit,
+  FileLock,
 } from "./types";
 
 type View = "doc" | "explorer";
-const TOKEN_KEY = "srs_edit_token";
 
 function firstFile(nodes: TreeNode[]): string | null {
   let fallback: string | null = null;
@@ -99,15 +103,16 @@ export default function App() {
   const [path, setPath] = useState<string | null>(null);
   const [content, setContent] = useState("");
   const [history, setHistory] = useState<FileCommit[]>([]);
+  const [lock, setLock] = useState<FileLock | null>(null);
   const [loadingDoc, setLoadingDoc] = useState(false);
   const [navTarget, setNavTarget] = useState<NavTarget | null>(null);
   const [view, setView] = useState<View>("doc");
   const [wireframeImages, setWireframeImages] = useState<Set<string>>(new Set());
 
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [showLogin, setShowLogin] = useState(false);
+  const [showPromote, setShowPromote] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   const [navOpened, { toggle: toggleNav }] = useDisclosure(true);
   const [aiOpen, setAiOpen] = useState(true);
@@ -188,25 +193,38 @@ export default function App() {
       const res = await fetchFile(filePath);
       setContent(res.content);
       setHistory(res.history || []);
+      setLock(res.lock || null);
       setPath(filePath);
     } catch {
       setContent(`# Could not load file\n\n\`${filePath}\``);
       setHistory([]);
+      setLock(null);
       setPath(filePath);
     } finally {
       setLoadingDoc(false);
     }
   }, []);
 
+  // release our own edit lock when leaving a file mid-edit (nav away, product
+  // switch, etc.) so it doesn't sit held for the full TTL unnecessarily
+  const releaseOwnLock = useCallback(
+    (filePath: string | null) => {
+      const user = getUser();
+      if (editing && filePath && user) unlockFile(filePath, user.token);
+    },
+    [editing]
+  );
+
   const openFile = useCallback(
     async (filePath: string, anchor?: string, highlight?: string, idTarget?: string) => {
       setView("doc");
+      if (editing && filePath !== path) releaseOwnLock(path);
       setEditing(false);
       if (filePath !== path) await loadFile(filePath);
       nonce.current += 1;
       setNavTarget({ filePath, anchor, highlight, idTarget, nonce: nonce.current });
     },
-    [path, loadFile]
+    [path, loadFile, editing, releaseOwnLock]
   );
 
   const handleCrossLink = useCallback(
@@ -238,37 +256,88 @@ export default function App() {
     [openFile]
   );
 
-  const startEditing = () => {
+  // Sign in -> unlock editing (enter EDIT_PASSWORD once) -> acquire the file
+  // lock -> enter edit mode. Each step short-circuits to the right prompt.
+  const startEditing = async () => {
     if (!path) return;
-    if (token) setEditing(true);
-    else setShowLogin(true);
-  };
-  const doLogin = async (password: string) => {
-    const t = await login(password);
-    localStorage.setItem(TOKEN_KEY, t);
-    setToken(t);
-    setShowLogin(false);
+    const currentUser = getUser(); // avoid stale closure right after sign-in/promote
+    if (!currentUser) {
+      setShowAuth(true);
+      return;
+    }
+    if (currentUser.role !== "editor") {
+      setShowPromote(true);
+      return;
+    }
+    const r = await lockFile(path, currentUser.token);
+    if (!r.ok) {
+      setLock(r.lock || null);
+      notifications.show({ color: "orange", message: r.error || "This document is locked." });
+      return;
+    }
+    setLock(r.lock || null);
     setEditing(true);
   };
+
+  const doPromote = async (password: string) => {
+    await promote(password);
+    setUser(getUser());
+    setShowPromote(false);
+    // re-run startEditing now that the account is an editor
+    await startEditing();
+  };
+
+  const stopEditing = () => {
+    releaseOwnLock(path);
+    setEditing(false);
+    setLock(null);
+  };
+
+  // renew the lock periodically while the editor stays open, well inside the
+  // 5-minute server-side TTL, so a long editing session never expires under
+  // the user's feet
+  useEffect(() => {
+    if (!editing || !path) return;
+    const t = setInterval(() => {
+      const u = getUser();
+      if (u) lockFile(path, u.token).catch(() => {});
+    }, 90_000);
+    return () => clearInterval(t);
+  }, [editing, path]);
+
+  // release the lock if the tab closes while still editing (best-effort)
+  useEffect(() => {
+    const handler = () => releaseOwnLock(path);
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [path, releaseOwnLock]);
+
   const handleSave = async (newContent: string) => {
-    if (!path || !token) return;
+    const user = getUser();
+    if (!path || !user) return;
     setSaving(true);
     try {
-      const r = await saveFile(path, newContent, token);
+      const r = await saveFile(path, newContent, user.token);
       setContent(newContent);
-      fetchFile(path).then((res) => setHistory(res.history || []));
+      fetchFile(path).then((res) => {
+        setHistory(res.history || []);
+        setLock(res.lock || null);
+      });
       notifications.show({
         color: "teal",
         message: r.committed ? `Saved · committed ${r.committed}` : "Saved",
       });
     } catch (e: any) {
-      if (/author|expired|not authorized/i.test(e?.message || "")) {
-        localStorage.removeItem(TOKEN_KEY);
-        setToken(null);
+      const msg = e?.message || "Save failed";
+      if (/currently editing/i.test(msg)) {
+        // someone else grabbed the lock (e.g. ours expired) — bail to read-only
         setEditing(false);
-        setShowLogin(true);
+        fetchFile(path).then((res) => setLock(res.lock || null));
+      } else if (/sign in|not an editor/i.test(msg)) {
+        setEditing(false);
+        setShowAuth(true);
       }
-      notifications.show({ color: "red", message: e?.message || "Save failed" });
+      notifications.show({ color: "red", message: msg });
     } finally {
       setSaving(false);
     }
@@ -329,17 +398,41 @@ export default function App() {
             </Tooltip>
           )}
 
-          {editingEnabled && view === "doc" && !editing && online && (
-            <Tooltip label={token ? "Edit document" : "Unlock editing"}>
-              <Button
-                size="xs"
-                variant="light"
-                leftSection={token ? <IconPencil size={14} /> : <IconLock size={14} />}
-                onClick={startEditing}
-                disabled={!path}
+          {editingEnabled &&
+            view === "doc" &&
+            !editing &&
+            online &&
+            (lock && lock.username !== user?.username ? (
+              <Tooltip label={`${lock.displayName} is currently editing this document`}>
+                <Badge color="orange" variant="light" leftSection={<IconLock size={12} />}>
+                  {lock.displayName} editing
+                </Badge>
+              </Tooltip>
+            ) : (
+              <Tooltip label={user?.role === "editor" ? "Edit document" : "Unlock editing"}>
+                <Button
+                  size="xs"
+                  variant="light"
+                  leftSection={
+                    user?.role === "editor" ? <IconPencil size={14} /> : <IconLock size={14} />
+                  }
+                  onClick={startEditing}
+                  disabled={!path}
+                >
+                  Edit
+                </Button>
+              </Tooltip>
+            ))}
+
+          {view === "doc" && path && history.length > 0 && (
+            <Tooltip label="Version history">
+              <ActionIcon
+                variant="default"
+                onClick={() => setShowHistory(true)}
+                aria-label="Version history"
               >
-                Edit
-              </Button>
+                <IconHistory size={18} />
+              </ActionIcon>
             </Tooltip>
           )}
 
@@ -439,7 +532,7 @@ export default function App() {
             wireframeImages={wireframeImages}
             saving={saving}
             onSave={handleSave}
-            onCancel={() => setEditing(false)}
+            onCancel={stopEditing}
           />
         ) : (
           <ScrollArea h="100%" type="auto">
@@ -463,13 +556,16 @@ export default function App() {
                     onSearchRef={handleSearchRef}
                   />
                   {history.length > 0 && (
-                    <Text size="xs" c="dimmed" mt="xl" pt="sm" style={{ borderTop: "1px solid var(--mantine-color-gray-3)" }}>
-                      <b>Recent edits:</b>{" "}
-                      {history.slice(0, 5).map((h) => (
-                        <span key={h.hash} style={{ marginRight: 12 }}>
-                          {h.date} {h.subject} ({h.hash})
-                        </span>
-                      ))}
+                    <Text
+                      size="xs"
+                      c="dimmed"
+                      mt="xl"
+                      pt="sm"
+                      style={{ borderTop: "1px solid var(--mantine-color-gray-3)", cursor: "pointer" }}
+                      onClick={() => setShowHistory(true)}
+                    >
+                      <b>Last edited:</b> {history[0].date} by {history[0].author} ({history[0].hash})
+                      {history.length > 1 && ` · ${history.length} revisions — view history`}
                     </Text>
                   )}
                 </>
@@ -488,7 +584,11 @@ export default function App() {
         />
       </AppShell.Aside>
 
-      <LoginModal opened={showLogin} onSubmit={doLogin} onClose={() => setShowLogin(false)} />
+      <EditorPasswordModal
+        opened={showPromote}
+        onSubmit={doPromote}
+        onClose={() => setShowPromote(false)}
+      />
       <UserAuthModal
         opened={showAuth}
         onClose={() => setShowAuth(false)}
@@ -506,6 +606,22 @@ export default function App() {
         onRequireAuth={() => setShowAuth(true)}
         onNavigate={(a, idTarget) => path && openFile(path, a || undefined, undefined, idTarget)}
         onChanged={refreshComments}
+      />
+      <HistoryModal
+        opened={showHistory}
+        onClose={() => setShowHistory(false)}
+        filePath={path || ""}
+        history={history}
+        currentContent={content}
+        onRestored={(restoredContent) => {
+          setContent(restoredContent);
+          if (path)
+            fetchFile(path).then((res) => {
+              setHistory(res.history || []);
+              setLock(res.lock || null);
+            });
+          notifications.show({ color: "teal", message: "Restored earlier version" });
+        }}
       />
       <InstallPrompt />
     </AppShell>

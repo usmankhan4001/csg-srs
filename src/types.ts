@@ -63,10 +63,18 @@ export interface FileCommit {
   subject: string;
 }
 
+export interface FileLock {
+  username: string;
+  displayName: string;
+  acquiredAt: number;
+  expiresAt: number;
+}
+
 export interface FileResponse {
   path: string;
   content: string;
   history?: FileCommit[];
+  lock?: FileLock | null;
 }
 
 // A request to navigate the center panel.
