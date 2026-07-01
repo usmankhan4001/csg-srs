@@ -31,6 +31,7 @@ import {
   IconUser,
   IconLogout,
   IconHistory,
+  IconCloudUpload,
 } from "@tabler/icons-react";
 import { useOnline } from "./useOnline";
 import UserAuthModal from "./components/UserAuthModal";
@@ -43,6 +44,7 @@ import {
   logout,
   promote,
   syncQueue,
+  pendingCount,
   fetchComments,
   addComment,
   type CurrentUser,
@@ -125,10 +127,12 @@ export default function App() {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentFocus, setCommentFocus] = useState<string | null>(null);
   const [fileComments, setFileComments] = useState<CommentT[]>([]);
+  const [pending, setPending] = useState(0);
 
   const refreshComments = useCallback(() => {
     if (path) fetchComments(path).then(setFileComments);
     else setFileComments([]);
+    setPending(pendingCount());
   }, [path]);
 
   useEffect(() => {
@@ -139,6 +143,7 @@ export default function App() {
   useEffect(() => {
     if (online && user) {
       syncQueue().then((n) => {
+        setPending(pendingCount());
         if (n > 0) {
           notifications.show({ color: "teal", message: `Synced ${n} offline comment(s)` });
           refreshComments();
@@ -394,6 +399,14 @@ export default function App() {
             <Tooltip label="Offline — viewing cached docs. AI is unavailable.">
               <Badge color="orange" variant="light" leftSection={<IconWifiOff size={12} />}>
                 Offline
+              </Badge>
+            </Tooltip>
+          )}
+
+          {pending > 0 && (
+            <Tooltip label={`${pending} comment(s) saved offline — will sync automatically once you're back online`}>
+              <Badge color="blue" variant="light" leftSection={<IconCloudUpload size={12} />}>
+                {pending} pending
               </Badge>
             </Tooltip>
           )}

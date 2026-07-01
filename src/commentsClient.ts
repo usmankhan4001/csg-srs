@@ -14,6 +14,9 @@ export interface CommentT {
   createdAt: string;
   resolved?: boolean;
   pending?: boolean; // not yet synced to server
+  _syncToken?: string; // local-only: the author's token at queue time, so a
+  // later sync attributes correctly even if a *different* user has since
+  // signed in on this device (never sent to the server as comment content)
 }
 
 export interface CurrentUser {
@@ -183,7 +186,10 @@ export async function addComment(input: {
 
   const ok = await postComment(comment, user.token);
   if (!ok) {
-    setQueue([...getQueue(), comment]);
+    // snapshot the CURRENT user's token onto the queued copy so a later sync
+    // (possibly run by a different signed-in user on this device) still
+    // attributes the comment correctly
+    setQueue([...getQueue(), { ...comment, _syncToken: user.token }]);
   } else {
     comment.pending = false;
   }
@@ -248,16 +254,19 @@ async function postComment(c: CommentT, token: string): Promise<boolean> {
   }
 }
 
-// Flush queued comments to the server (call when back online).
+// Flush queued comments to the server (call when back online). Each item is
+// posted with the token that was active when IT was queued — not necessarily
+// the currently signed-in user — so switching accounts on the same device
+// never re-attributes someone else's offline comments to you.
 export async function syncQueue(): Promise<number> {
-  const user = getUser();
-  if (!user) return 0;
-  let queue = getQueue();
+  const currentUser = getUser();
+  const queue = getQueue();
   if (!queue.length) return 0;
   const remaining: CommentT[] = [];
   let synced = 0;
   for (const c of queue) {
-    const ok = await postComment(c, user.token);
+    const token = c._syncToken || currentUser?.token;
+    const ok = token ? await postComment(c, token) : false;
     if (ok) synced++;
     else remaining.push(c);
   }
