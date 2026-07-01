@@ -391,7 +391,7 @@ export default function App() {
           <Burger opened={navOpened} onClick={toggleNav} hiddenFrom="sm" size="sm" />
           <Title order={5} style={{ whiteSpace: "nowrap" }}>
             SRS{" "}
-            <Text span c="indigo.6" inherit>
+            <Text span c="teal.6" inherit>
               Knowledge Base
             </Text>
           </Title>
@@ -480,7 +480,7 @@ export default function App() {
               disabled={fileComments.length === 0}
               label={fileComments.length}
               size={16}
-              color="indigo"
+              color="teal"
             >
               <ActionIcon
                 variant={commentsOpen ? "filled" : "default"}
@@ -522,7 +522,7 @@ export default function App() {
             <Menu shadow="md" width={180} position="bottom-end">
               <Menu.Target>
                 <Tooltip label={user.displayName}>
-                  <Avatar color="indigo" radius="xl" size={30} style={{ cursor: "pointer" }}>
+                  <Avatar color="teal" radius="xl" size={30} style={{ cursor: "pointer" }}>
                     {user.displayName.split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase()}
                   </Avatar>
                 </Tooltip>

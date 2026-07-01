@@ -9,8 +9,7 @@ body,
   margin: 0;
 }
 body {
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    Helvetica, Arial, sans-serif;
+  font-family: var(--mantine-font-family);
   color: var(--mantine-color-text);
   background: var(--mantine-color-body);
 }
@@ -57,7 +56,7 @@ body {
   margin: 0.2em 0;
 }
 .prose-srs a {
-  color: #2563eb;
+  color: #256558;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -117,9 +116,9 @@ body {
 
 /* Cross-link chips */
 .xlink {
-  background: #eef2ff;
-  color: #4338ca;
-  border: 1px solid #c7d2fe;
+  background: #e6f1ee;
+  color: #1c4d45;
+  border: 1px solid #bcdad3;
   border-radius: 5px;
   padding: 0 5px;
   font-size: 0.85em;
@@ -129,7 +128,7 @@ body {
   text-decoration: none !important;
 }
 .xlink:hover {
-  background: #c7d2fe;
+  background: #bcdad3;
 }
 .xlink.soft {
   background: #f1f5f9;
@@ -175,9 +174,9 @@ mark.cmt-highlight:hover {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  border: 1.5px solid #c7d2fe;
+  border: 1.5px solid #bcdad3;
   background: #ffffff;
-  color: #4f46e5;
+  color: #2f7e70;
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
   display: flex;
@@ -187,9 +186,9 @@ mark.cmt-highlight:hover {
   padding: 0;
 }
 .cmt-margin-icon button:hover {
-  background: #eef2ff;
-  border-color: #818cf8;
-  box-shadow: 0 4px 12px rgba(79,70,229,0.2);
+  background: #e6f1ee;
+  border-color: #79bcb1;
+  box-shadow: 0 4px 12px rgba(47,126,112,0.2);
   transform: scale(1.08);
 }
 
@@ -251,13 +250,13 @@ mark.cmt-composing-highlight {
 }
 .cmt-marker.has {
   opacity: 1;
-  border-color: #c7d2fe;
-  background: #eef2ff;
-  color: #4338ca;
+  border-color: #bcdad3;
+  background: #e6f1ee;
+  color: #1c4d45;
   font-weight: 600;
 }
 .cmt-marker:hover {
-  background: #e0e7ff;
+  background: #dcece7;
 }
 
 .mermaid-wrap {
@@ -288,8 +287,8 @@ mark.cmt-composing-highlight {
   color: #334155;
 }
 .mermaid-toolbar button:hover {
-  background: #eef2ff;
-  border-color: #c7d2fe;
+  background: #e6f1ee;
+  border-color: #bcdad3;
 }
 .mermaid-hint {
   margin-left: 6px;
@@ -324,7 +323,7 @@ mark.cmt-composing-highlight {
   border-top-color: #373a40;
 }
 [data-mantine-color-scheme="dark"] .prose-srs a {
-  color: #74a3f5;
+  color: #6cbdac;
 }
 [data-mantine-color-scheme="dark"] .prose-srs blockquote {
   border-left-color: #4b5563;
@@ -349,12 +348,12 @@ mark.cmt-composing-highlight {
   border-color: #373a40;
 }
 [data-mantine-color-scheme="dark"] .xlink {
-  background: #2b2f6b;
-  color: #b7c1ff;
-  border-color: #3f4491;
+  background: #1c3833;
+  color: #9cd8cb;
+  border-color: #2a5249;
 }
 [data-mantine-color-scheme="dark"] .xlink:hover {
-  background: #3f4491;
+  background: #2a5249;
 }
 [data-mantine-color-scheme="dark"] .xlink.soft {
   background: #2c2e33;
@@ -370,11 +369,11 @@ mark.cmt-composing-highlight {
 }
 [data-mantine-color-scheme="dark"] .cmt-margin-icon button {
   background: #25262b;
-  border-color: #3f4491;
-  color: #b7c1ff;
+  border-color: #2a5249;
+  color: #9cd8cb;
 }
 [data-mantine-color-scheme="dark"] .cmt-margin-icon button:hover {
-  background: #2b2f6b;
+  background: #1c3833;
 }
 [data-mantine-color-scheme="dark"] .cmt-marker {
   border-color: #373a40;
@@ -382,9 +381,9 @@ mark.cmt-composing-highlight {
   color: #9ca3af;
 }
 [data-mantine-color-scheme="dark"] .cmt-marker.has {
-  border-color: #3f4491;
-  background: #2b2f6b;
-  color: #b7c1ff;
+  border-color: #2a5249;
+  background: #1c3833;
+  color: #9cd8cb;
 }
 [data-mantine-color-scheme="dark"] .cmt-marker:hover {
   background: #2c2e33;

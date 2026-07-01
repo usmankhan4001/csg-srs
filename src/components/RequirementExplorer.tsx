@@ -75,7 +75,7 @@ export default function RequirementExplorer({
 
   return (
     <div className="h-full flex flex-col">
-      <div className="p-3 border-b border-slate-200 flex flex-wrap gap-2 items-center bg-white">
+      <div className="p-3 border-b border-slate-200 dark:border-slate-700 flex flex-wrap gap-2 items-center bg-white dark:bg-[#1a1b1e]">
         <h2 className="font-bold text-base mr-2">
           Requirement Explorer{" "}
           <span className="text-slate-400 font-normal text-sm">
@@ -86,12 +86,12 @@ export default function RequirementExplorer({
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Filter by ID, text, test case…"
-          className="px-2 py-1 border border-slate-300 rounded text-sm flex-1 min-w-[200px]"
+          className="px-2 py-1 border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded text-sm flex-1 min-w-[200px]"
         />
         <select
           value={module}
           onChange={(e) => setModule(e.target.value)}
-          className="px-2 py-1 border border-slate-300 rounded text-sm"
+          className="px-2 py-1 border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded text-sm"
         >
           <option value="all">All modules</option>
           {modules.map((m) => (
@@ -103,7 +103,7 @@ export default function RequirementExplorer({
         <select
           value={priority}
           onChange={(e) => setPriority(e.target.value)}
-          className="px-2 py-1 border border-slate-300 rounded text-sm"
+          className="px-2 py-1 border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded text-sm"
         >
           <option value="all">All priorities</option>
           {priorities.map((p) => (
@@ -116,7 +116,7 @@ export default function RequirementExplorer({
 
       <div className="flex-1 overflow-auto">
         <table className="w-full text-[13px] border-collapse">
-          <thead className="sticky top-0 bg-slate-100 text-left text-slate-600 z-10">
+          <thead className="sticky top-0 bg-slate-100 dark:bg-slate-800 text-left text-slate-600 dark:text-slate-300 z-10">
             <tr>
               {th("id", "ID")}
               {th("module", "Module")}
@@ -127,7 +127,7 @@ export default function RequirementExplorer({
           </thead>
           <tbody>
             {filtered.map((r) => (
-              <tr key={r.id} className="border-b border-slate-100 hover:bg-slate-50 align-top">
+              <tr key={r.id} className="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 align-top">
                 <td className="px-2 py-1.5 whitespace-nowrap">
                   <button
                     className="xlink"
@@ -136,17 +136,17 @@ export default function RequirementExplorer({
                     {r.id}
                   </button>
                 </td>
-                <td className="px-2 py-1.5 whitespace-nowrap text-slate-600">
+                <td className="px-2 py-1.5 whitespace-nowrap text-slate-600 dark:text-slate-300">
                   {r.module}
                 </td>
                 <td className="px-2 py-1.5">
                   <span
                     className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${
                       r.priority === "Must"
-                        ? "bg-red-100 text-red-700"
+                        ? "bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300"
                         : r.priority === "Should"
-                        ? "bg-amber-100 text-amber-700"
-                        : "bg-slate-100 text-slate-600"
+                        ? "bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300"
+                        : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
                     }`}
                   >
                     {r.priority || "—"}

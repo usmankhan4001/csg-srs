@@ -137,16 +137,16 @@ export default function ChatPanel({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-3 py-2 border-b border-slate-200 bg-white">
-        <div className="font-semibold text-sm">SRS Assistant</div>
-        <div className="text-[11px] text-slate-500">
+      <div className="px-3 py-2 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1a1b1e]">
+        <div className="font-semibold text-sm dark:text-slate-100">SRS Assistant</div>
+        <div className="text-[11px] text-slate-500 dark:text-slate-400">
           Answers strictly from the SRS, with citations
         </div>
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-auto p-3 space-y-3">
         {messages.length === 0 && (
-          <div className="text-xs text-slate-500 space-y-2">
+          <div className="text-xs text-slate-500 dark:text-slate-400 space-y-2">
             <p>Try asking:</p>
             <ul className="list-disc pl-4 space-y-1">
               <li>What is LMS-FR-057?</li>
@@ -160,7 +160,7 @@ export default function ChatPanel({
           <div key={i}>
             <div
               className={`text-[10px] uppercase tracking-wide mb-1 ${
-                m.role === "user" ? "text-indigo-500" : "text-slate-400"
+                m.role === "user" ? "text-teal-700 dark:text-teal-400" : "text-slate-400"
               }`}
             >
               {m.role === "user" ? "You" : "Assistant"}
@@ -168,8 +168,8 @@ export default function ChatPanel({
             <div
               className={`rounded-lg px-3 py-2 text-[13.5px] ${
                 m.role === "user"
-                  ? "bg-indigo-50 text-indigo-900"
-                  : "bg-slate-50 text-slate-800"
+                  ? "bg-teal-50 dark:bg-teal-950 text-teal-900 dark:text-teal-100"
+                  : "bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100"
               }`}
             >
               {m.role === "assistant" ? (
@@ -178,7 +178,7 @@ export default function ChatPanel({
                   // every delta corrupts partial tables. Render markdown only
                   // once the message is complete.
                   <div
-                    className="text-[13.5px] whitespace-pre-wrap text-slate-700"
+                    className="text-[13.5px] whitespace-pre-wrap text-slate-700 dark:text-slate-200"
                     style={{ wordBreak: "break-word" }}
                   >
                     {m.content || "…"}
@@ -224,7 +224,7 @@ export default function ChatPanel({
                   <button
                     key={s.id}
                     onClick={() => onSource(s)}
-                    className="text-[10.5px] bg-white border border-slate-200 hover:border-indigo-300 rounded px-1.5 py-0.5 text-slate-600"
+                    className="text-[10.5px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 hover:border-teal-300 rounded px-1.5 py-0.5 text-slate-600 dark:text-slate-300"
                     title={`${s.part} — ${s.heading}`}
                   >
                     {s.heading.length > 36
@@ -238,9 +238,9 @@ export default function ChatPanel({
         ))}
       </div>
 
-      <div className="border-t border-slate-200 p-2 bg-white">
+      <div className="border-t border-slate-200 dark:border-slate-700 p-2 bg-white dark:bg-[#1a1b1e]">
         {!online && (
-          <div className="mb-2 text-[11px] text-orange-700 bg-orange-50 border border-orange-200 rounded px-2 py-1">
+          <div className="mb-2 text-[11px] text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded px-2 py-1">
             You're offline — the AI assistant needs a connection. Docs, search,
             and comments still work.
           </div>
@@ -257,12 +257,12 @@ export default function ChatPanel({
           rows={2}
           disabled={!online}
           placeholder={online ? "Ask about the SRS…" : "Unavailable offline"}
-          className="w-full resize-none text-sm border border-slate-300 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:bg-slate-50"
+          className="w-full resize-none text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-300 disabled:bg-slate-50 dark:disabled:bg-slate-900"
         />
         <button
           onClick={sendMessage}
           disabled={busy || !online}
-          className="mt-1 w-full bg-indigo-600 text-white text-sm rounded-md py-1.5 disabled:opacity-50 hover:bg-indigo-700"
+          className="mt-1 w-full bg-teal-700 text-white text-sm rounded-md py-1.5 disabled:opacity-50 hover:bg-teal-800"
         >
           {busy ? "Thinking…" : "Send"}
         </button>

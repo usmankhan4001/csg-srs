@@ -68,11 +68,11 @@ export default function SearchBar({
       onClick={() => pick(h)}
       p="xs"
       style={{ display: "block", width: "100%", borderBottom: "1px solid var(--mantine-color-gray-1)" }}
-      className="hover:bg-slate-50"
+      className="hover:bg-slate-50 dark:hover:bg-slate-700"
     >
       <Group gap="xs" wrap="nowrap">
         {idBadge && (
-          <Badge size="xs" color="indigo">
+          <Badge size="xs" color="teal">
             ID
           </Badge>
         )}

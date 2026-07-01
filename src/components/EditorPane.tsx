@@ -54,22 +54,22 @@ export default function EditorPane({
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-slate-200 bg-amber-50">
-        <span className="text-[11px] font-bold uppercase tracking-wide text-amber-700">
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-slate-200 dark:border-slate-700 bg-amber-50 dark:bg-amber-950">
+        <span className="text-[11px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-400">
           Editing
         </span>
-        <span className="text-xs text-slate-600 truncate flex-1">{filePath}</span>
-        {dirty && <span className="text-[11px] text-amber-600">● unsaved</span>}
+        <span className="text-xs text-slate-600 dark:text-slate-300 truncate flex-1">{filePath}</span>
+        {dirty && <span className="text-[11px] text-amber-600 dark:text-amber-400">● unsaved</span>}
         <button
           onClick={() => onSave(text)}
           disabled={!dirty || saving}
-          className="text-xs bg-indigo-600 text-white px-3 py-1 rounded disabled:opacity-50 hover:bg-indigo-700"
+          className="text-xs bg-teal-700 text-white px-3 py-1 rounded disabled:opacity-50 hover:bg-teal-800"
         >
           {saving ? "Saving…" : "Save (⌘/Ctrl+S)"}
         </button>
         <button
           onClick={onCancel}
-          className="text-xs border border-slate-300 px-3 py-1 rounded hover:bg-slate-100"
+          className="text-xs border border-slate-300 dark:border-slate-600 dark:text-slate-200 px-3 py-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700"
         >
           Done
         </button>
@@ -82,10 +82,10 @@ export default function EditorPane({
           onChange={(e) => setText(e.target.value)}
           onKeyDown={onKey}
           spellCheck={false}
-          className="h-full w-full resize-none p-4 font-mono text-[13px] leading-relaxed outline-none border-r border-slate-200 bg-slate-50"
+          className="h-full w-full resize-none p-4 font-mono text-[13px] leading-relaxed outline-none border-r border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 dark:text-slate-100"
           style={{ tabSize: 2 }}
         />
-        <div className="h-full overflow-auto p-4 bg-white">
+        <div className="h-full overflow-auto p-4 bg-white dark:bg-[#1a1b1e]">
           <div className="max-w-3xl">
             <MarkdownView
               content={preview}

@@ -166,7 +166,7 @@ export default function CommentsDrawer({
     <Paper withBorder p="xs" radius="md" id={`cmt-${c.id}`}>
       <Group gap="xs" mb={4} wrap="nowrap" justify="space-between">
         <Group gap="xs" wrap="nowrap">
-          <Avatar size={24} radius="xl" color="indigo">
+          <Avatar size={24} radius="xl" color="teal">
             {initials(c.authorName || "?")}
           </Avatar>
           <Text size="sm" fw={600}>
