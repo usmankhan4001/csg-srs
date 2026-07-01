@@ -18,8 +18,9 @@ import {
   Indicator,
   useMantineColorScheme,
   useComputedColorScheme,
+  Burger,
 } from "@mantine/core";
-import { useDisclosure } from "@mantine/hooks";
+import { useDisclosure, useMediaQuery } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import {
   IconPencil,
@@ -122,10 +123,27 @@ export default function App() {
   const [showPromote, setShowPromote] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
 
-  const [navOpened, { toggle: toggleNav }] = useDisclosure(true);
-  const [aiOpen, setAiOpen] = useState(true);
+  const isMobile = useMediaQuery("(max-width: 48em)");
+  const [navOpened, { toggle: toggleNav, close: closeNav, open: openNav }] = useDisclosure(!isMobile);
+  const [aiOpen, setAiOpen] = useState(!isMobile);
   const online = useOnline();
   const nonce = useRef(0);
+
+  // useMediaQuery's initial value defaults to `false` and only resolves to
+  // the real viewport a tick after mount, so this effect necessarily fires
+  // once with a possibly-wrong guess before correcting itself on the next
+  // render once the real match comes in. It only re-fires on an actual
+  // isMobile transition (e.g. rotating a tablet), so manual nav/AI toggles
+  // in between are left alone.
+  useEffect(() => {
+    if (isMobile) {
+      closeNav();
+      setAiOpen(false);
+    } else {
+      openNav();
+      setAiOpen(true);
+    }
+  }, [isMobile, closeNav, openNav]);
 
   // users + comments
   const [user, setUser] = useState<CurrentUser | null>(() => getUser());
@@ -234,8 +252,9 @@ export default function App() {
       if (filePath !== path) await loadFile(filePath);
       nonce.current += 1;
       setNavTarget({ filePath, anchor, highlight, idTarget, nonce: nonce.current });
+      if (isMobile) closeNav();
     },
-    [path, loadFile, editing, releaseOwnLock]
+    [path, loadFile, editing, releaseOwnLock, isMobile, closeNav]
   );
 
   const handleCrossLink = useCallback(
@@ -369,6 +388,7 @@ export default function App() {
     >
       <AppShell.Header>
         <Group h="100%" px="sm" gap="sm" wrap="nowrap">
+          <Burger opened={navOpened} onClick={toggleNav} hiddenFrom="sm" size="sm" />
           <Title order={5} style={{ whiteSpace: "nowrap" }}>
             SRS{" "}
             <Text span c="indigo.6" inherit>
