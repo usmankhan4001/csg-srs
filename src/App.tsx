@@ -38,6 +38,7 @@ import {
   IconSun,
   IconMoon,
   IconHelp,
+  IconCloudCheck,
 } from "@tabler/icons-react";
 import { useOnline } from "./useOnline";
 import UserAuthModal from "./components/UserAuthModal";
@@ -73,6 +74,8 @@ import {
   lockFile,
   unlockFile,
   fetchWireframeImages,
+  prefetchProduct,
+  isProductCached,
 } from "./api";
 import type {
   TreeNode,
@@ -109,6 +112,7 @@ export default function App() {
   const [products, setProducts] = useState<Product[]>([]);
   const [product, setProduct] = useState<string>("");
   const [editingEnabled, setEditingEnabled] = useState(false);
+  const [offlineReady, setOfflineReady] = useState<Set<string>>(new Set());
 
   const [tree, setTree] = useState<TreeNode[]>([]);
   const [path, setPath] = useState<string | null>(null);
@@ -213,17 +217,46 @@ export default function App() {
       setProducts(cfg.products);
       setEditingEnabled(cfg.editingEnabled);
       setProduct(cfg.defaultProduct);
+
+      // Check which products are already available offline, then warm up the
+      // rest in the background (one at a time) so switching products later
+      // works offline too — not just the one the user happened to open.
+      (async () => {
+        const ready = new Set<string>();
+        for (const p of cfg.products) {
+          if (await isProductCached(p.id)) ready.add(p.id);
+        }
+        setOfflineReady(new Set(ready));
+        if (!navigator.onLine) return;
+        for (const p of cfg.products) {
+          if (ready.has(p.id)) continue;
+          if (await prefetchProduct(p.id)) {
+            setOfflineReady((s) => new Set(s).add(p.id));
+          }
+        }
+      })();
     });
   }, []);
 
   useEffect(() => {
     if (!product) return;
     setEditing(false);
-    fetchTree(product).then((t) => {
-      setTree(t);
-      const f = firstFile(t);
-      if (f) openFile(f);
-    });
+    fetchTree(product)
+      .then((t) => {
+        setTree(t);
+        setOfflineReady((s) => new Set(s).add(product));
+        const f = firstFile(t);
+        if (f) openFile(f);
+      })
+      .catch(() => {
+        setTree([]);
+        setPath(null);
+        setContent("# Not available offline\n\nThis product hasn't been loaded on this device yet, so it isn't available offline. Reconnect and open it once to make it available offline going forward.");
+        notifications.show({
+          color: "orange",
+          message: "That product isn't available offline yet — reconnect to load it.",
+        });
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product]);
 
@@ -411,7 +444,21 @@ export default function App() {
             size="xs"
             value={product}
             onChange={(v) => v && setProduct(v)}
-            data={products.map((p) => ({ value: p.id, label: p.name }))}
+            data={products.map((p) => ({
+              value: p.id,
+              label: p.name,
+              disabled: !online && !offlineReady.has(p.id),
+            }))}
+            renderOption={({ option, checked }) => (
+              <Group flex="1" gap="xs" justify="space-between" wrap="nowrap">
+                <Text size="sm">{option.label}</Text>
+                {offlineReady.has(option.value) && !checked && (
+                  <Tooltip label="Available offline">
+                    <IconCloudCheck size={13} style={{ opacity: 0.5, flexShrink: 0 }} />
+                  </Tooltip>
+                )}
+              </Group>
+            )}
             allowDeselect={false}
             w={170}
             visibleFrom="sm"

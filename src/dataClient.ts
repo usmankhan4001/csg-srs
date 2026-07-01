@@ -93,6 +93,36 @@ export function invalidateBundles() {
   active = null;
 }
 
+// Load a product's bundle into the cache without switching the active
+// product — used to warm up every product in the background so switching
+// products later works offline, not just the one the user happened to visit.
+export async function prefetchProduct(product: string): Promise<boolean> {
+  if (cache.has(product)) return true;
+  try {
+    const res = await fetch(`/api/bundle?product=${encodeURIComponent(product)}`);
+    if (!res.ok) return false;
+    const bundle: Bundle = await res.json();
+    cache.set(product, buildActive(bundle));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Whether a product's bundle is already available offline — either loaded
+// into memory this session, or persisted from a previous one in the
+// service worker's cache (Workbox's "srs-data" NetworkFirst cache).
+export async function isProductCached(product: string): Promise<boolean> {
+  if (cache.has(product)) return true;
+  if (!("caches" in window)) return false;
+  try {
+    const match = await caches.match(`/api/bundle?product=${encodeURIComponent(product)}`);
+    return !!match;
+  } catch {
+    return false;
+  }
+}
+
 export function getTree(): TreeNode[] {
   return active?.bundle.tree || [];
 }

@@ -14,7 +14,11 @@ import {
   clientSearch,
   clientLookup,
   invalidateBundles,
+  prefetchProduct,
+  isProductCached,
 } from "./dataClient";
+
+export { prefetchProduct, isProductCached };
 
 async function getJSON(url: string, tries = 5): Promise<Response> {
   let lastErr: unknown;
